@@ -1,0 +1,490 @@
+{
+    "dropFirst": true,
+    "data": {
+        "users": [
+            {
+                "name": "Alice Tester",
+                "email": "alice@example.com",
+                "password": "Password123!"
+            },
+            {
+                "name": "Bob Builder",
+                "email": "bob@example.com",
+                "password": "Password123!"
+            },
+            {
+                "name": "Charlie Dev",
+                "email": "charlie@example.com",
+                "password": "Password123!"
+            },
+            {
+                "name": "Diana QA",
+                "email": "diana@example.com",
+                "password": "Password123!"
+            },
+            {
+                "name": "Eve Ops",
+                "email": "eve@example.com",
+                "password": "Password123!"
+            }
+        ],
+        "ledgers": [
+            {
+                "name": "Household",
+                "description": "Home expenses"
+            },
+            {
+                "name": "Travel 2025",
+                "description": "Trips and vacations"
+            },
+            {
+                "name": "Side Hustle",
+                "description": "Freelance income and expenses"
+            },
+            {
+                "name": "Friends Group",
+                "description": "Shared hangouts"
+            },
+            {
+                "name": "Car",
+                "description": "Car related expenses"
+            }
+        ],
+        "budgets": [
+            {
+                "name": "Groceries",
+                "amount": 40000,
+                "spent": 12000,
+                "period": "monthly",
+                "category": "Food & Dining",
+                "startDate": "2025-08-01",
+                "endDate": "2025-08-31",
+                "status": "active"
+            },
+            {
+                "name": "Transport",
+                "amount": 15000,
+                "spent": 2000,
+                "period": "monthly",
+                "category": "Transportation",
+                "startDate": "2025-08-01",
+                "endDate": "2025-08-31",
+                "status": "active"
+            },
+            {
+                "name": "Entertainment",
+                "amount": 12000,
+                "spent": 9000,
+                "period": "monthly",
+                "category": "Entertainment",
+                "startDate": "2025-08-01",
+                "endDate": "2025-08-31",
+                "status": "active"
+            },
+            {
+                "name": "Dining Out",
+                "amount": 10000,
+                "spent": 1500,
+                "period": "monthly",
+                "category": "Food & Dining",
+                "startDate": "2025-08-01",
+                "endDate": "2025-08-31",
+                "status": "active"
+            },
+            {
+                "name": "Shopping",
+                "amount": 25000,
+                "spent": 5000,
+                "period": "monthly",
+                "category": "Shopping",
+                "startDate": "2025-08-01",
+                "endDate": "2025-08-31",
+                "status": "active"
+            }
+        ],
+        "recurrings": [
+            {
+                "description": "Netflix",
+                "amount": 1600,
+                "category": "Entertainment",
+                "frequency": "monthly",
+                "startDate": "2025-08-01",
+                "nextDue": "2025-09-01"
+            },
+            {
+                "description": "Gym",
+                "amount": 3000,
+                "category": "Healthcare",
+                "frequency": "monthly",
+                "startDate": "2025-08-01",
+                "nextDue": "2025-09-01"
+            },
+            {
+                "description": "Internet",
+                "amount": 4500,
+                "category": "Bills & Utilities",
+                "frequency": "monthly",
+                "startDate": "2025-08-01",
+                "nextDue": "2025-09-01"
+            },
+            {
+                "description": "Rent",
+                "amount": 50000,
+                "category": "Bills & Utilities",
+                "frequency": "monthly",
+                "startDate": "2025-08-01",
+                "nextDue": "2025-09-01"
+            },
+            {
+                "description": "Savings",
+                "amount": 10000,
+                "category": "Savings",
+                "frequency": "monthly",
+                "startDate": "2025-08-01",
+                "nextDue": "2025-09-01"
+            }
+        ],
+        "goals": [
+            {
+                "name": "Emergency Fund",
+                "description": "6 months expenses",
+                "targetAmount": 300000,
+                "currentAmount": 50000,
+                "targetDate": "2026-02-01",
+                "category": "Savings",
+                "priority": "high"
+            },
+            {
+                "name": "New Laptop",
+                "description": "Dev machine",
+                "targetAmount": 250000,
+                "currentAmount": 90000,
+                "targetDate": "2025-12-01",
+                "category": "Investment",
+                "priority": "medium"
+            },
+            {
+                "name": "Vacation",
+                "description": "Beach trip",
+                "targetAmount": 200000,
+                "currentAmount": 20000,
+                "targetDate": "2026-03-01",
+                "category": "Travel",
+                "priority": "medium"
+            },
+            {
+                "name": "Course",
+                "description": "Online education",
+                "targetAmount": 50000,
+                "currentAmount": 10000,
+                "targetDate": "2025-11-01",
+                "category": "Education",
+                "priority": "low"
+            },
+            {
+                "name": "Phone Upgrade",
+                "description": "New phone",
+                "targetAmount": 180000,
+                "currentAmount": 30000,
+                "targetDate": "2026-01-15",
+                "category": "Shopping",
+                "priority": "low"
+            }
+        ],
+        "people": [
+            {
+                "name": "Faisal Khan",
+                "email": "faisal@example.com",
+                "avatar": "",
+                "isAppUser": false,
+                "phone": "+92 300 0000001",
+                "notes": "Colleague"
+            },
+            {
+                "name": "Hina Ali",
+                "email": "hina@example.com",
+                "avatar": "",
+                "isAppUser": false,
+                "phone": "+92 300 0000002",
+                "notes": "Friend"
+            },
+            {
+                "name": "Usman Iqbal",
+                "email": "usman@example.com",
+                "avatar": "",
+                "isAppUser": false,
+                "phone": "+92 300 0000003",
+                "notes": "Gym buddy"
+            },
+            {
+                "name": "Sana Tariq",
+                "email": "sana@example.com",
+                "avatar": "",
+                "isAppUser": false,
+                "phone": "+92 300 0000004",
+                "notes": "Neighbor"
+            },
+            {
+                "name": "Zain Malik",
+                "email": "zain@example.com",
+                "avatar": "",
+                "isAppUser": false,
+                "phone": "+92 300 0000005",
+                "notes": "Cousin"
+            }
+        ],
+        "notifications": [
+            {
+                "type": "payment_received",
+                "title": "Payment received",
+                "message": "You received PKR 2,000",
+                "amount": 2000
+            },
+            {
+                "type": "added_to_ledger",
+                "title": "Added to ledger",
+                "message": "You were added to Household ledger",
+                "ledger": "Household"
+            },
+            {
+                "type": "new_expense",
+                "title": "New expense",
+                "message": "New expense in Travel 2025"
+            },
+            {
+                "type": "reminder",
+                "title": "Upcoming bill",
+                "message": "Internet bill due soon",
+                "amount": 4500
+            },
+            {
+                "type": "payment_approved",
+                "title": "Payment approved",
+                "message": "Your payment was approved"
+            }
+        ],
+        "transactions": [
+            {
+                "description": "Groceries at Imtiaz",
+                "amount": 5200,
+                "category": "Food & Dining",
+                "date": "2025-08-08",
+                "type": "expense"
+            },
+            {
+                "description": "Fuel",
+                "amount": 4500,
+                "category": "Transportation",
+                "date": "2025-08-09",
+                "type": "expense"
+            },
+            {
+                "description": "Freelance payout",
+                "amount": 75000,
+                "category": "Income",
+                "date": "2025-08-04",
+                "type": "income"
+            },
+            {
+                "description": "Dinner",
+                "amount": 3200,
+                "category": "Food & Dining",
+                "date": "2025-08-10",
+                "type": "expense"
+            },
+            {
+                "description": "Movie night",
+                "amount": 1800,
+                "category": "Entertainment",
+                "date": "2025-08-06",
+                "type": "expense"
+            },
+            {
+                "description": "Phone bill",
+                "amount": 2300,
+                "category": "Bills & Utilities",
+                "date": "2025-08-02",
+                "type": "expense"
+            },
+            {
+                "description": "Pharmacy",
+                "amount": 1200,
+                "category": "Healthcare",
+                "date": "2025-08-07",
+                "type": "expense"
+            },
+            {
+                "description": "Cafe",
+                "amount": 900,
+                "category": "Food & Dining",
+                "date": "2025-08-09",
+                "type": "expense"
+            },
+            {
+                "description": "Dividends",
+                "amount": 5000,
+                "category": "Income",
+                "date": "2025-08-01",
+                "type": "income"
+            },
+            {
+                "description": "Uber",
+                "amount": 650,
+                "category": "Transportation",
+                "date": "2025-08-10",
+                "type": "expense"
+            }
+        ],
+        "bills": [
+            {
+                "description": "Dinner split",
+                "items": [
+                    {
+                        "name": "Pizzas",
+                        "amount": 2400,
+                        "participants": [
+                            "Alice",
+                            "Bob"
+                        ]
+                    },
+                    {
+                        "name": "Drinks",
+                        "amount": 600,
+                        "participants": [
+                            "Alice",
+                            "Bob",
+                            "Charlie"
+                        ]
+                    }
+                ],
+                "paidBy": "Alice",
+                "participants": [
+                    "Alice",
+                    "Bob",
+                    "Charlie"
+                ],
+                "subtotal": 3000,
+                "tax": 0,
+                "taxPercentage": 0,
+                "tip": 0,
+                "total": 3000,
+                "date": "2025-08-09",
+                "status": "finalized"
+            },
+            {
+                "description": "Groceries split",
+                "items": [
+                    {
+                        "name": "Veggies",
+                        "amount": 1200,
+                        "participants": [
+                            "Diana",
+                            "Eve"
+                        ]
+                    },
+                    {
+                        "name": "Snacks",
+                        "amount": 800,
+                        "participants": [
+                            "Diana",
+                            "Eve"
+                        ]
+                    }
+                ],
+                "paidBy": "Diana",
+                "participants": [
+                    "Diana",
+                    "Eve"
+                ],
+                "subtotal": 2000,
+                "tax": 0,
+                "taxPercentage": 0,
+                "tip": 0,
+                "total": 2000,
+                "date": "2025-08-08",
+                "status": "finalized"
+            },
+            {
+                "description": "Ride to airport",
+                "items": [
+                    {
+                        "name": "Uber",
+                        "amount": 1800,
+                        "participants": [
+                            "Alice",
+                            "Charlie"
+                        ]
+                    }
+                ],
+                "paidBy": "Charlie",
+                "participants": [
+                    "Alice",
+                    "Charlie"
+                ],
+                "subtotal": 1800,
+                "tax": 0,
+                "taxPercentage": 0,
+                "tip": 0,
+                "total": 1800,
+                "date": "2025-08-10",
+                "status": "finalized"
+            },
+            {
+                "description": "Snacks",
+                "items": [
+                    {
+                        "name": "Chips",
+                        "amount": 300,
+                        "participants": [
+                            "Bob",
+                            "Eve"
+                        ]
+                    }
+                ],
+                "paidBy": "Bob",
+                "participants": [
+                    "Bob",
+                    "Eve"
+                ],
+                "subtotal": 300,
+                "tax": 0,
+                "taxPercentage": 0,
+                "tip": 0,
+                "total": 300,
+                "date": "2025-08-05",
+                "status": "finalized"
+            },
+            {
+                "description": "BBQ Night",
+                "items": [
+                    {
+                        "name": "BBQ items",
+                        "amount": 4200,
+                        "participants": [
+                            "Alice",
+                            "Bob",
+                            "Charlie",
+                            "Diana",
+                            "Eve"
+                        ]
+                    }
+                ],
+                "paidBy": "Alice",
+                "participants": [
+                    "Alice",
+                    "Bob",
+                    "Charlie",
+                    "Diana",
+                    "Eve"
+                ],
+                "subtotal": 4200,
+                "tax": 0,
+                "taxPercentage": 0,
+                "tip": 0,
+                "total": 4200,
+                "date": "2025-08-03",
+                "status": "finalized"
+            }
+        ]
+    }
+}
