@@ -9,9 +9,10 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Input } from "@/components/ui/input"
-import { Plus, Filter, Download, Settings, Check, Clock, AlertCircle } from "lucide-react"
+import { Plus, Filter, Download, Settings } from "lucide-react"
 import { AddTransactionModal } from "@/components/add-transaction-modal"
-import { getLedger } from "@/services/api"
+import { getLedger, getTransactions, getLedgerTransactions, approveLedgerShare, markLedgerSharePaid, deleteLedgerTransaction } from "@/services/api"
+import { useAuth } from "@/contexts/auth-context"
 
 type LedgerDetail = {
   id: string
@@ -19,87 +20,20 @@ type LedgerDetail = {
   description?: string | null
   balance?: number
   totalExpenses?: number
-  membersDetailed: Array<{ id: string; name: string; email: string; avatar?: string | null; role: string }>
+  membersDetailed: Array<{ id: string; name: string; email: string; avatar?: string | null }>
 }
 
-const transactions = [
-  {
-    id: "1",
-    description: "Flight Tickets",
-    amount: 800.0,
-    category: "Travel",
-    date: "2024-01-01",
-    paidBy: { id: "1", name: "You" },
-    splits: [
-      { userId: "1", amount: 200.0, status: "paid", isPayer: true },
-      { userId: "2", amount: 200.0, status: "pending", isPayer: false },
-      { userId: "3", amount: 200.0, status: "marked_paid", isPayer: false },
-      { userId: "4", amount: 200.0, status: "settled", isPayer: false },
-    ],
-    status: "pending",
-  },
-  {
-    id: "2",
-    description: "Hotel Accommodation",
-    amount: 600.0,
-    category: "Accommodation",
-    date: "2024-01-02",
-    paidBy: { id: "2", name: "Alice Johnson" },
-    splits: [
-      { userId: "1", amount: 150.0, status: "settled", isPayer: false },
-      { userId: "2", amount: 150.0, status: "paid", isPayer: true },
-      { userId: "3", amount: 150.0, status: "settled", isPayer: false },
-      { userId: "4", amount: 150.0, status: "settled", isPayer: false },
-    ],
-    status: "settled",
-  },
-  {
-    id: "3",
-    description: "Group Dinner",
-    amount: 120.0,
-    category: "Food",
-    date: "2024-01-03",
-    paidBy: { id: "3", name: "Bob Smith" },
-    splits: [
-      { userId: "1", amount: 30.0, status: "awaiting_approval", isPayer: false },
-      { userId: "2", amount: 30.0, status: "marked_paid", isPayer: false },
-      { userId: "3", amount: 30.0, status: "paid", isPayer: true },
-      { userId: "4", amount: 30.0, status: "marked_paid", isPayer: false },
-    ],
-    status: "awaiting_approval",
-  },
-]
-
-const getStatusIcon = (status: string) => {
-  switch (status) {
-    case "settled":
-      return <Check className="h-4 w-4 text-green-600" />
-    case "pending":
-      return <AlertCircle className="h-4 w-4 text-yellow-600" />
-    case "awaiting_approval":
-      return <Clock className="h-4 w-4 text-blue-600" />
-    default:
-      return <AlertCircle className="h-4 w-4 text-gray-600" />
-  }
-}
-
-const getStatusBadge = (status: string) => {
-  const variants = {
-    settled: "default",
-    pending: "secondary",
-    awaiting_approval: "outline",
-  } as const
-
-  return <Badge variant={variants[status as keyof typeof variants] || "secondary"}>{status.replace("_", " ")}</Badge>
-}
+// Transactions will be loaded from API filtered by ledgerId
 
 export default function LedgerDetailPage() {
   const params = useParams()
+  const { user } = useAuth()
   const [showAddTransaction, setShowAddTransaction] = useState(false)
   const [sortBy, setSortBy] = useState("date")
   const [filterCategory, setFilterCategory] = useState("all")
   const [searchTerm, setSearchTerm] = useState("")
   const [ledgerData, setLedgerData] = useState<LedgerDetail | null>(null)
+  const [transactions, setTransactions] = useState<Array<{ id: string; description: string; totalAmount: number; category: string; date: string; paidBy?: { id: string; name?: string | null }; shares?: Array<{ user: { id: string; name?: string | null }, amount: number, status: string }> }>>([])
 
   useEffect(() => {
     const id = params?.id as string
@@ -109,6 +43,8 @@ export default function LedgerDetailPage() {
         try {
           const data = await getLedger(id)
           if (mounted) setLedgerData(data)
+          const ltx = await getLedgerTransactions(id)
+          if (mounted) setTransactions(Array.isArray(ltx) ? ltx : [])
         } catch (e) {
           console.error(e)
         }
@@ -124,14 +60,18 @@ export default function LedgerDetailPage() {
     return matchesSearch && matchesCategory
   })
 
-  const handleMarkAsPaid = (transactionId: string, userId: string) => {
-    // Mock implementation
-    console.log(`Marking transaction ${transactionId} as paid for user ${userId}`)
+  const handleMarkAsPaid = async (transactionId: string) => {
+    if (!params?.id) return
+    await markLedgerSharePaid(String(params.id), transactionId)
+    const ltx = await getLedgerTransactions(String(params.id))
+    setTransactions(Array.isArray(ltx) ? ltx : [])
   }
 
-  const handleApprovePayment = (transactionId: string) => {
-    // Mock implementation
-    console.log(`Approving payment for transaction ${transactionId}`)
+  const handleApprovePayment = async (transactionId: string, userId: string) => {
+    if (!params?.id) return
+    await approveLedgerShare(String(params.id), transactionId, userId)
+    const ltx = await getLedgerTransactions(String(params.id))
+    setTransactions(Array.isArray(ltx) ? ltx : [])
   }
 
   return (
@@ -225,7 +165,7 @@ export default function LedgerDetailPage() {
                     <div className="text-sm text-muted-foreground">{member.email}</div>
                   </div>
                 </div>
-                <Badge variant="outline">{member.role}</Badge>
+                {/* Role removed: equal permissions */}
               </div>
             ))}
           </div>
@@ -273,64 +213,50 @@ export default function LedgerDetailPage() {
                 <TableHead>Amount</TableHead>
                 <TableHead>Category</TableHead>
                 <TableHead>Paid By</TableHead>
-                <TableHead>Your Share</TableHead>
-                <TableHead>Status</TableHead>
+                <TableHead>Payment Status</TableHead>
                 <TableHead>Date</TableHead>
                 <TableHead>Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredTransactions.map((transaction) => {
-                const userSplit = transaction.splits.find((split) => split.userId === "1")
+                const isPayer = transaction.paidBy?.id && user?.id && transaction.paidBy.id === user.id
+                const myShare = (transaction.shares || []).find((s) => s.user?.id === user?.id)
+                const canMarkPaid = !!myShare && myShare.status === "pending" && !isPayer
+                const canApprove = !!isPayer
+                const canDelete = !!isPayer
+                const statuses = (transaction.shares || []).map((s) => s.status)
+                const overall = statuses.length === 0 ? "-" : statuses.every((s) => s === "approved") ? "approved" : statuses.some((s) => s === "paid") ? "pending approval" : "pending"
                 return (
                   <TableRow key={transaction.id}>
                     <TableCell className="font-medium">{transaction.description}</TableCell>
-                    <TableCell>${transaction.amount.toFixed(2)}</TableCell>
+                    <TableCell>${Number(transaction.totalAmount || 0).toFixed(2)}</TableCell>
                     <TableCell>
                       <Badge variant="outline">{transaction.category}</Badge>
                     </TableCell>
-                    <TableCell>{transaction.paidBy.name}</TableCell>
-                    <TableCell>
-                      <div className="flex items-center space-x-2">
-                        <span>${userSplit?.amount.toFixed(2)}</span>
-                        {userSplit && (
-                          <Badge
-                            variant={
-                              userSplit.status === "settled"
-                                ? "default"
-                                : userSplit.status === "paid"
-                                  ? "default"
-                                  : userSplit.status === "marked_paid"
-                                    ? "secondary"
-                                    : "outline"
-                            }
-                            className="text-xs"
-                          >
-                            {userSplit.status.replace("_", " ")}
-                          </Badge>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center space-x-1">
-                        {getStatusIcon(transaction.status)}
-                        {getStatusBadge(transaction.status)}
-                      </div>
-                    </TableCell>
-                    <TableCell>{transaction.date}</TableCell>
-                    <TableCell>
-                      <div className="flex items-center space-x-1">
-                        {userSplit && !userSplit.isPayer && userSplit.status === "pending" && (
-                          <Button size="sm" variant="outline" onClick={() => handleMarkAsPaid(transaction.id, "1")}>
-                            Mark Paid
-                          </Button>
-                        )}
-                        {transaction.paidBy.id === "1" && transaction.status === "awaiting_approval" && (
-                          <Button size="sm" onClick={() => handleApprovePayment(transaction.id)}>
-                            Approve
-                          </Button>
-                        )}
-                      </div>
+                    <TableCell>{transaction.paidBy?.name || "-"}</TableCell>
+                    <TableCell>{overall}</TableCell>
+                    <TableCell>{new Date(transaction.date).toISOString().split("T")[0]}</TableCell>
+                    <TableCell className="space-x-2">
+                      {/* Mark as paid for self if present and not payer */}
+                      {canMarkPaid && (
+                        <Button variant="outline" size="sm" onClick={() => handleMarkAsPaid(transaction.id)}>Mark Paid</Button>
+                      )}
+                      {/* Approve buttons only for payer for each participant in paid status */}
+                      {canApprove && (transaction.shares || []).filter((s) => s.status === "paid").map((s) => (
+                        <Button key={s.user.id} variant="outline" size="sm" onClick={() => handleApprovePayment(transaction.id, s.user.id)}>
+                          Approve {s.user.name?.split(" ")[0] || "user"}
+                        </Button>
+                      ))}
+                      {/* Delete only if payer */}
+                      {canDelete && (
+                        <Button variant="destructive" size="sm" onClick={async () => {
+                          if (!params?.id) return
+                          await deleteLedgerTransaction(String(params.id), transaction.id)
+                          const ltx = await getLedgerTransactions(String(params.id))
+                          setTransactions(Array.isArray(ltx) ? ltx : [])
+                        }}>Delete</Button>
+                      )}
                     </TableCell>
                   </TableRow>
                 )
@@ -340,7 +266,19 @@ export default function LedgerDetailPage() {
         </CardContent>
       </Card>
 
-      <AddTransactionModal open={showAddTransaction} onOpenChange={setShowAddTransaction} />
+      <AddTransactionModal
+        open={showAddTransaction}
+        onOpenChange={setShowAddTransaction}
+        ledgerId={(params?.id as string) || undefined}
+        onCreated={async () => {
+          const id = params?.id as string
+          if (!id) return
+          try {
+            const ltx = await getLedgerTransactions(id)
+            setTransactions(Array.isArray(ltx) ? ltx : [])
+          } catch (e) { console.error(e) }
+        }}
+      />
     </div>
   )
 }

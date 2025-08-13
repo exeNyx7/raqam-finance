@@ -19,48 +19,69 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { useToast } from "@/hooks/use-toast"
 import { X } from "lucide-react"
-import { createLedger } from "@/services/api"
+import { createLedger, getPeople, searchUsers } from "@/services/api"
+import { useAuth } from "@/contexts/auth-context"
 
 interface CreateLedgerModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
 }
 
-const mockUsers = [
-  { id: "1", name: "Alice Johnson", email: "alice@example.com", avatar: "/placeholder.svg?height=32&width=32" },
-  { id: "2", name: "Bob Smith", email: "bob@example.com", avatar: "/placeholder.svg?height=32&width=32" },
-  { id: "3", name: "Carol Davis", email: "carol@example.com", avatar: "/placeholder.svg?height=32&width=32" },
-  { id: "4", name: "David Wilson", email: "david@example.com", avatar: "/placeholder.svg?height=32&width=32" },
-]
+type SearchResult = { id: string; name: string; email: string; avatar?: string | null; isAppUser: boolean }
 
 export function CreateLedgerModal({ open, onOpenChange }: CreateLedgerModalProps) {
+  const { user } = useAuth()
   const [name, setName] = useState("")
   const [description, setDescription] = useState("")
   const [type, setType] = useState<"personal" | "shared">("personal")
   const [members, setMembers] = useState<
-    Array<{ id: string; name: string; email: string; avatar: string; role: "editor" | "viewer" }>
+    Array<{ id: string; name: string; email: string; avatar?: string | null }>
   >([])
   const [emailInput, setEmailInput] = useState("")
-  const [searchResults, setSearchResults] = useState<typeof mockUsers>([])
+  const [searchResults, setSearchResults] = useState<SearchResult[]>([])
   const { toast } = useToast()
 
-  const handleEmailSearch = (email: string) => {
+  const handleEmailSearch = async (email: string) => {
     setEmailInput(email)
     if (email.length > 2) {
-      const results = mockUsers.filter(
-        (user) =>
-          user.email.toLowerCase().includes(email.toLowerCase()) ||
-          user.name.toLowerCase().includes(email.toLowerCase()),
-      )
-      setSearchResults(results)
+      try {
+        const [contactsRes, usersRes] = await Promise.all([
+          getPeople({ search: email, limit: 5 }),
+          searchUsers(email),
+        ])
+        const contacts = (contactsRes?.data || contactsRes || []).map((p: any) => ({ name: p.name, email: p.email, avatar: p.avatar }))
+        let appUsers: Array<{ id: string; name: string; email: string; avatar?: string | null }> = Array.isArray(usersRes) ? usersRes : []
+        // filter out current user from app user results
+        if (user?.id) {
+          appUsers = appUsers.filter((u) => u.id !== user.id && u.email !== user.email)
+        }
+        const appByEmail = new Map(appUsers.map((u) => [u.email, u]))
+        const results: SearchResult[] = []
+        // include all app users
+        for (const u of appUsers) {
+          results.push({ id: u.id, name: u.name, email: u.email, avatar: u.avatar, isAppUser: true })
+        }
+        // include contacts that are not already app users (for visibility), but mark as not addable
+        for (const c of contacts) {
+          if (appByEmail.has(c.email)) continue
+          results.push({ id: c.email, name: c.name, email: c.email, avatar: c.avatar, isAppUser: false })
+        }
+        setSearchResults(results)
+      } catch (e) {
+        setSearchResults([])
+      }
     } else {
       setSearchResults([])
     }
   }
 
-  const addMember = (user: (typeof mockUsers)[0]) => {
+  const addMember = (user: SearchResult) => {
+    if (!user.isAppUser) {
+      toast({ title: "Cannot add contact", description: "This person hasn't joined the app yet.", variant: "destructive" })
+      return
+    }
     if (!members.find((m) => m.id === user.id)) {
-      setMembers([...members, { ...user, role: "editor" }])
+      setMembers([...members, { id: user.id, name: user.name, email: user.email, avatar: user.avatar }])
       setEmailInput("")
       setSearchResults([])
     }
@@ -70,14 +91,16 @@ export function CreateLedgerModal({ open, onOpenChange }: CreateLedgerModalProps
     setMembers(members.filter((m) => m.id !== userId))
   }
 
-  const updateMemberRole = (userId: string, role: "editor" | "viewer") => {
-    setMembers(members.map((m) => (m.id === userId ? { ...m, role } : m)))
-  }
+  // Roles removed: all members have equal permissions
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    await createLedger({ name, description })
+    const payload: any = { name, description }
+    if (type === "shared" && members.length) {
+      payload.members = members.map((m) => ({ userId: m.id }))
+    }
+    await createLedger(payload)
 
     toast({
       title: "Ledger created",
@@ -142,7 +165,7 @@ export function CreateLedgerModal({ open, onOpenChange }: CreateLedgerModalProps
           {type === "shared" && (
             <div className="space-y-4">
               <div className="space-y-2">
-                <Label>Add Members</Label>
+                <Label>Add Members (search your contacts or app users by email)</Label>
                 <div className="relative">
                   <Input
                     placeholder="Search by email or name"
@@ -154,8 +177,8 @@ export function CreateLedgerModal({ open, onOpenChange }: CreateLedgerModalProps
                       {searchResults.map((user) => (
                         <div
                           key={user.id}
-                          className="flex items-center space-x-2 p-2 hover:bg-muted cursor-pointer"
-                          onClick={() => addMember(user)}
+                          className={`flex items-center space-x-2 p-2 ${user.isAppUser ? "hover:bg-muted cursor-pointer" : "opacity-60"}`}
+                          onClick={() => user.isAppUser && addMember(user)}
                         >
                           <Avatar className="h-6 w-6">
                             <AvatarImage src={user.avatar || "/placeholder.svg"} />
@@ -165,6 +188,7 @@ export function CreateLedgerModal({ open, onOpenChange }: CreateLedgerModalProps
                             <div className="text-sm font-medium">{user.name}</div>
                             <div className="text-xs text-muted-foreground">{user.email}</div>
                           </div>
+                          {!user.isAppUser && <div className="text-xs text-muted-foreground">Invite to join</div>}
                         </div>
                       ))}
                     </div>
@@ -189,18 +213,6 @@ export function CreateLedgerModal({ open, onOpenChange }: CreateLedgerModalProps
                           </div>
                         </div>
                         <div className="flex items-center space-x-2">
-                          <Select
-                            value={member.role}
-                            onValueChange={(role: "editor" | "viewer") => updateMemberRole(member.id, role)}
-                          >
-                            <SelectTrigger className="w-24">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="editor">Editor</SelectItem>
-                              <SelectItem value="viewer">Viewer</SelectItem>
-                            </SelectContent>
-                          </Select>
                           <Button type="button" variant="ghost" size="sm" onClick={() => removeMember(member.id)}>
                             <X className="h-4 w-4" />
                           </Button>

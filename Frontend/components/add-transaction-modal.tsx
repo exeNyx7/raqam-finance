@@ -1,8 +1,6 @@
 "use client"
 
-import type React from "react"
-
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useApp } from "@/contexts/app-context"
 import {
   Dialog,
@@ -20,15 +18,16 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { useToast } from "@/hooks/use-toast"
-import { createTransaction } from "@/services/api"
+import { addLedgerTransaction, createTransaction, getLedger } from "@/services/api"
 
 interface AddTransactionModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   onCreated?: () => void
+  ledgerId?: string
 }
 
-export function AddTransactionModal({ open, onOpenChange, onCreated }: AddTransactionModalProps) {
+export function AddTransactionModal({ open, onOpenChange, onCreated, ledgerId }: AddTransactionModalProps) {
   const { state } = useApp()
   const [name, setName] = useState("")
   const [amount, setAmount] = useState("")
@@ -36,20 +35,57 @@ export function AddTransactionModal({ open, onOpenChange, onCreated }: AddTransa
   const [date, setDate] = useState(new Date().toISOString().split("T")[0])
   const [type, setType] = useState<"income" | "expense">("expense")
   const [loading, setLoading] = useState(false)
+  const [members, setMembers] = useState<Array<{ id: string; name: string }>>([])
+  const [selectedParticipants, setSelectedParticipants] = useState<Record<string, boolean>>({})
   const { toast } = useToast()
+
+  // Load ledger members when used inside a ledger
+  useEffect(() => {
+    let mounted = true
+    if (!ledgerId) return
+      ; (async () => {
+        try {
+          const ledger = await getLedger(ledgerId)
+          if (!mounted) return
+          const list = Array.isArray(ledger?.membersDetailed) ? ledger.membersDetailed : []
+          setMembers(list.map((m: any) => ({ id: m.id, name: m.name })))
+          // default: select all members except the payer
+          const map: Record<string, boolean> = {}
+          list.forEach((m: any) => {
+            if (m.id) map[m.id] = true
+          })
+          setSelectedParticipants(map)
+        } catch (_) { }
+      })()
+    return () => { mounted = false }
+  }, [ledgerId])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
 
     try {
-      await createTransaction({
-        description: name,
-        amount: type === "expense" ? -Math.abs(Number.parseFloat(amount)) : Math.abs(Number.parseFloat(amount)),
-        category,
-        date,
-        type,
-      })
+      if (ledgerId && type === "expense") {
+        const participants = Object.entries(selectedParticipants)
+          .filter(([_, checked]) => checked)
+          .map(([userId]) => ({ userId }))
+        await addLedgerTransaction(ledgerId, {
+          description: name,
+          totalAmount: Math.abs(Number.parseFloat(amount)),
+          category,
+          date,
+          participants,
+        })
+      } else {
+        await createTransaction({
+          description: name,
+          amount: type === "expense" ? -Math.abs(Number.parseFloat(amount)) : Math.abs(Number.parseFloat(amount)),
+          category,
+          date,
+          type,
+          ledgerId,
+        })
+      }
 
       toast({
         title: "Transaction added",
@@ -144,6 +180,24 @@ export function AddTransactionModal({ open, onOpenChange, onCreated }: AddTransa
               <Input id="date" type="date" value={date} onChange={(e) => setDate(e.target.value)} required />
             </div>
           </div>
+
+          {ledgerId && (
+            <div className="space-y-2">
+              <Label>Split with</Label>
+              <div className="max-h-40 overflow-auto space-y-2 border rounded p-2">
+                {members.map((m) => (
+                  <label key={m.id} className="flex items-center space-x-2">
+                    <Checkbox
+                      checked={!!selectedParticipants[m.id]}
+                      onCheckedChange={(v) => setSelectedParticipants((s) => ({ ...s, [m.id]: Boolean(v) }))}
+                    />
+                    <span>{m.name}</span>
+                  </label>
+                ))}
+                {members.length === 0 && <div className="text-sm text-muted-foreground">No members</div>}
+              </div>
+            </div>
+          )}
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>

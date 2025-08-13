@@ -1,9 +1,29 @@
 const Goal = require('../models/Goal')
+const Transaction = require('../models/Transaction')
+const Budget = require('../models/Budget')
 
 function deriveStatus(currentAmount, targetAmount, existingStatus) {
     if (currentAmount >= targetAmount) return 'completed'
     if (existingStatus === 'paused') return 'paused'
     return 'active'
+}
+
+async function adjustBudgetsForCategoryAndDate({ userId, category, date, deltaAmount }) {
+    try {
+        if (!category || !date || !deltaAmount) return
+        const txDate = new Date(date)
+        const budgets = await Budget.find({
+            userId,
+            category,
+            startDate: { $lte: txDate },
+            endDate: { $gte: txDate },
+        })
+        for (const b of budgets) {
+            const nextSpent = Math.max(0, (b.spent || 0) + deltaAmount)
+            const nextStatus = nextSpent >= b.amount ? 'exceeded' : 'active'
+            await Budget.findByIdAndUpdate(b._id, { $set: { spent: nextSpent, status: nextStatus } })
+        }
+    } catch (_) { }
 }
 
 exports.list = async (req, res, next) => {
@@ -124,6 +144,63 @@ exports.addContribution = async (req, res, next) => {
         g.status = deriveStatus(g.currentAmount, g.targetAmount, g.status)
         g.contributions.push({ amount: Number(amount), note })
         await g.save()
+
+        // Mirror as an expense transaction (savings contribution reduces balance)
+        const now = new Date()
+        await Transaction.create({
+            description: `Goal contribution: ${g.name}`,
+            amount: Math.abs(Number(amount)),
+            category: g.category,
+            date: now,
+            type: 'expense',
+            metadata: { goalId: g._id.toString(), note },
+            userId: req.userId,
+        })
+
+        // Adjust budgets for the category if any are active
+        await adjustBudgetsForCategoryAndDate({
+            userId: req.userId,
+            category: g.category,
+            date: now,
+            deltaAmount: Math.abs(Number(amount) || 0),
+        })
+
+        res.json({ success: true, timestamp: new Date().toISOString(), data: g.toClient() })
+    } catch (err) {
+        next(err)
+    }
+}
+
+exports.withdraw = async (req, res, next) => {
+    try {
+        const { amount, note } = req.body
+        if (amount == null) {
+            return res.status(400).json({ success: false, message: 'Amount is required', timestamp: new Date().toISOString() })
+        }
+        const withdrawal = Math.abs(Number(amount))
+        const g = await Goal.findOne({ _id: req.params.id, userId: req.userId })
+        if (!g) return res.status(404).json({ success: false, message: 'Not found', timestamp: new Date().toISOString() })
+        if (g.currentAmount < withdrawal) {
+            return res.status(400).json({ success: false, message: 'Insufficient goal balance', timestamp: new Date().toISOString() })
+        }
+
+        g.currentAmount -= withdrawal
+        g.status = deriveStatus(g.currentAmount, g.targetAmount, g.status)
+        g.contributions.push({ amount: -withdrawal, note })
+        await g.save()
+
+        // Mirror as an income transaction (withdrawing from savings increases balance)
+        const now = new Date()
+        await Transaction.create({
+            description: `Goal withdrawal: ${g.name}`,
+            amount: withdrawal,
+            category: g.category,
+            date: now,
+            type: 'income',
+            metadata: { goalId: g._id.toString(), note },
+            userId: req.userId,
+        })
+
         res.json({ success: true, timestamp: new Date().toISOString(), data: g.toClient() })
     } catch (err) {
         next(err)

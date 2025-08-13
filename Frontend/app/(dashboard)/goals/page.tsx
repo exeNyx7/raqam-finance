@@ -9,7 +9,7 @@ import { Progress } from "@/components/ui/progress"
 import { Plus, Trophy, Target, Calendar, TrendingUp, Flag } from "lucide-react"
 import { CreateGoalModal } from "@/components/create-goal-modal"
 import { AddGoalContributionModal } from "@/components/add-goal-contribution-modal"
-import { getGoals } from "@/services/api"
+import { deleteGoal, getGoals } from "@/services/api"
 
 export default function GoalsPage() {
   const { state } = useApp()
@@ -166,6 +166,17 @@ export default function GoalsPage() {
             >
               <Plus className="mr-2 h-3 w-3" />
               Add Money
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={async () => {
+                if (!confirm('Delete this goal?')) return
+                await deleteGoal(goal.id)
+                fetchGoals()
+              }}
+            >
+              Delete
             </Button>
             <Badge variant="outline" className="text-xs">
               {goal.category}

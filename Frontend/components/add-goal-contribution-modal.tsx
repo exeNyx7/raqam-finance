@@ -4,7 +4,7 @@ import type React from "react"
 
 import { useState } from "react"
 import { useApp } from "@/contexts/app-context"
-import { addGoalContribution } from "@/services/api"
+import { addGoalContribution, withdrawFromGoal } from "@/services/api"
 import {
   Dialog,
   DialogContent,
@@ -36,6 +36,7 @@ export function AddGoalContributionModal({ open, onOpenChange, goalId, goal, onS
   const { state } = useApp()
   const [amount, setAmount] = useState("")
   const [note, setNote] = useState("")
+  const [mode, setMode] = useState<'contribute' | 'withdraw'>("contribute")
   const { toast } = useToast()
 
   const selectedGoal = goalId ? goal : null
@@ -46,16 +47,24 @@ export function AddGoalContributionModal({ open, onOpenChange, goalId, goal, onS
     if (!selectedGoal || !goalId) return
 
     const contributionAmount = Number.parseFloat(amount)
-    await addGoalContribution(goalId, { amount: contributionAmount, note })
-
-    toast({
-      title: "Contribution added",
-      description: `${state.settings.currency} ${contributionAmount.toFixed(2)} added to ${selectedGoal.name}.`,
-    })
+    if (mode === 'contribute') {
+      await addGoalContribution(goalId, { amount: contributionAmount, note })
+      toast({
+        title: "Contribution added",
+        description: `${state.settings.currency} ${contributionAmount.toFixed(2)} added to ${selectedGoal.name}.`,
+      })
+    } else {
+      await withdrawFromGoal(goalId, { amount: contributionAmount, note })
+      toast({
+        title: "Withdrawal completed",
+        description: `${state.settings.currency} ${contributionAmount.toFixed(2)} withdrawn from ${selectedGoal.name}.`,
+      })
+    }
 
     // Reset form
     setAmount("")
     setNote("")
+    setMode('contribute')
 
     onOpenChange(false)
     onSuccess?.()
@@ -70,8 +79,8 @@ export function AddGoalContributionModal({ open, onOpenChange, goalId, goal, onS
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
-          <DialogTitle>Add Money to Goal</DialogTitle>
-          <DialogDescription>Contribute to "{selectedGoal.name}"</DialogDescription>
+          <DialogTitle>{mode === 'contribute' ? 'Add Money to Goal' : 'Withdraw from Goal'}</DialogTitle>
+          <DialogDescription>{mode === 'contribute' ? 'Contribute to' : 'Withdraw from'} "{selectedGoal.name}"</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
@@ -94,6 +103,10 @@ export function AddGoalContributionModal({ open, onOpenChange, goalId, goal, onS
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="flex gap-2">
+              <Button type="button" variant={mode === 'contribute' ? 'default' : 'outline'} className="flex-1" onClick={() => setMode('contribute')}>Add</Button>
+              <Button type="button" variant={mode === 'withdraw' ? 'default' : 'outline'} className="flex-1" onClick={() => setMode('withdraw')}>Withdraw</Button>
+            </div>
             <div className="space-y-2">
               <Label htmlFor="amount">Amount ({state.settings.currency})</Label>
               <Input
@@ -122,7 +135,7 @@ export function AddGoalContributionModal({ open, onOpenChange, goalId, goal, onS
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
                 Cancel
               </Button>
-              <Button type="submit">Add Contribution</Button>
+              <Button type="submit">{mode === 'contribute' ? 'Add Contribution' : 'Withdraw'}</Button>
             </DialogFooter>
           </form>
         </div>

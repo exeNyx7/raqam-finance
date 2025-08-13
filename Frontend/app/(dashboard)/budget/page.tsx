@@ -9,6 +9,7 @@ import { Progress } from "@/components/ui/progress"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Plus, TrendingUp, TrendingDown, AlertTriangle, Target, Calendar } from "lucide-react"
 import { CreateBudgetModal } from "@/components/create-budget-modal"
+import { EditBudgetModal } from "@/components/edit-budget-modal"
 
 import { getBudgets } from "@/services/api"
 
@@ -17,6 +18,7 @@ export default function BudgetPage() {
   const [showCreateBudget, setShowCreateBudget] = useState(false)
   const [budgets, setBudgets] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [editingBudget, setEditingBudget] = useState<any | null>(null)
 
   const loadBudgets = async () => {
     try {
@@ -59,9 +61,14 @@ export default function BudgetPage() {
         <CardHeader className="pb-2">
           <div className="flex items-center justify-between">
             <CardTitle className="text-base">{budget.name}</CardTitle>
-            <Badge variant={variant}>
-              {status === "exceeded" ? "Over Budget" : status === "warning" ? "Near Limit" : "On Track"}
-            </Badge>
+            <div className="flex items-center gap-2">
+              <Badge variant={variant}>
+                {status === "exceeded" ? "Over Budget" : status === "warning" ? "Near Limit" : "On Track"}
+              </Badge>
+              <Button size="sm" variant="outline" onClick={() => setEditingBudget(budget)}>
+                Edit
+              </Button>
+            </div>
           </div>
           <CardDescription className="capitalize">
             {budget.period} • {budget.category}
@@ -269,6 +276,15 @@ export default function BudgetPage() {
       </Tabs>
 
       <CreateBudgetModal open={showCreateBudget} onOpenChange={setShowCreateBudget} onCreated={loadBudgets} />
+      {editingBudget && (
+        <EditBudgetModal
+          open={!!editingBudget}
+          onOpenChange={(open) => !open && setEditingBudget(null)}
+          budget={editingBudget}
+          onUpdated={loadBudgets}
+          onDeleted={loadBudgets}
+        />
+      )}
     </div>
   )
 }
