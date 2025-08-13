@@ -12,6 +12,7 @@ router.post('/', controller.create)
 router.patch('/:id', controller.update)
 router.delete('/:id', controller.remove)
 router.post('/:id/contributions', controller.addContribution)
+router.post('/:id/withdraw', controller.withdraw)
 
 module.exports = router
 

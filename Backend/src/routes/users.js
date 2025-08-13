@@ -9,6 +9,7 @@ router.use(authMiddleware)
 router.get('/me', controller.getProfile)
 router.patch('/me', controller.updateProfile)
 router.post('/me/change-password', controller.changePassword)
+router.get('/search', controller.search)
 
 module.exports = router
 

@@ -3,7 +3,6 @@ const mongoose = require('mongoose')
 const ledgerMemberSchema = new mongoose.Schema(
     {
         userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-        role: { type: String, enum: ['owner', 'editor', 'viewer'], default: 'viewer' },
     },
     { _id: false },
 )
@@ -23,7 +22,7 @@ ledgerSchema.methods.toClient = function toClient() {
         id: this._id.toString(),
         name: this.name,
         description: this.description || null,
-        members: this.members.map((m) => ({ userId: m.userId.toString(), role: m.role })),
+        members: this.members.map((m) => ({ userId: m.userId.toString() })),
         userId: this.userId.toString(),
         createdAt: this.createdAt.toISOString(),
         updatedAt: this.updatedAt.toISOString(),

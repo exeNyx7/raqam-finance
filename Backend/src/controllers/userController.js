@@ -41,4 +41,20 @@ exports.changePassword = async (req, res, next) => {
     }
 }
 
+// Search app users by email or name (limited fields)
+exports.search = async (req, res, next) => {
+    try {
+        const raw = (req.query.search || req.query.email || '').toString().trim()
+        if (!raw || raw.length < 2) {
+            return res.json({ success: true, timestamp: new Date().toISOString(), data: [] })
+        }
+        const regex = new RegExp(raw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i')
+        const users = await User.find({ _id: { $ne: req.userId }, $or: [{ email: regex }, { name: regex }] }).limit(10)
+        const data = users.map((u) => ({ id: u._id.toString(), name: u.name, email: u.email, avatar: u.avatar || null }))
+        return res.json({ success: true, timestamp: new Date().toISOString(), data })
+    } catch (err) {
+        next(err)
+    }
+}
+
 

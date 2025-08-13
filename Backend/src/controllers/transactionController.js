@@ -1,4 +1,21 @@
 const Transaction = require('../models/Transaction')
+const Budget = require('../models/Budget')
+
+async function adjustBudgetsForCategoryAndDate({ userId, category, date, deltaAmount }) {
+    if (!category || !date || !deltaAmount) return
+    const txDate = new Date(date)
+    const budgets = await Budget.find({
+        userId,
+        category,
+        startDate: { $lte: txDate },
+        endDate: { $gte: txDate },
+    })
+    for (const b of budgets) {
+        const nextSpent = Math.max(0, (b.spent || 0) + deltaAmount)
+        const nextStatus = nextSpent >= b.amount ? 'exceeded' : 'active'
+        await Budget.findByIdAndUpdate(b._id, { $set: { spent: nextSpent, status: nextStatus } })
+    }
+}
 
 function buildFilter(query, userId) {
     const filter = { userId }
@@ -23,6 +40,11 @@ function buildFilter(query, userId) {
 
 exports.list = async (req, res, next) => {
     try {
+        // Ensure due recurrings are processed so recent transactions include them
+        try {
+            const { processDueRecurringsForUser } = require('../services/recurringProcessor')
+            await processDueRecurringsForUser(req.userId)
+        } catch (_) { /* ignore processing errors for listing */ }
         const page = Number(req.query.page || 1)
         const limit = Number(req.query.limit || 10)
         const sort = req.query.sort || '-date'
@@ -76,6 +98,16 @@ exports.create = async (req, res, next) => {
             metadata,
             userId: req.userId,
         })
+        // Sync budgets when an expense is created
+        if (type === 'expense') {
+            await adjustBudgetsForCategoryAndDate({
+                userId: req.userId,
+                category,
+                date,
+                // Amount might be negative for expenses; use absolute value for budget spent
+                deltaAmount: Math.abs(Number(amount) || 0),
+            })
+        }
         res.status(201).json({ success: true, timestamp: new Date().toISOString(), data: doc.toClient() })
     } catch (err) {
         next(err)
@@ -88,8 +120,27 @@ exports.update = async (req, res, next) => {
         const updates = {}
         for (const key of allowed) if (key in req.body) updates[key] = req.body[key]
         if (updates.date) updates.date = new Date(updates.date)
+        const original = await Transaction.findOne({ _id: req.params.id, userId: req.userId })
+        if (!original) return res.status(404).json({ success: false, message: 'Not found', timestamp: new Date().toISOString() })
         const t = await Transaction.findOneAndUpdate({ _id: req.params.id, userId: req.userId }, updates, { new: true })
         if (!t) return res.status(404).json({ success: false, message: 'Not found', timestamp: new Date().toISOString() })
+        // Re-sync budgets: remove previous expense impact, then add new expense impact
+        if (original.type === 'expense') {
+            await adjustBudgetsForCategoryAndDate({
+                userId: req.userId,
+                category: original.category,
+                date: original.date,
+                deltaAmount: -Math.abs(Number(original.amount) || 0),
+            })
+        }
+        if (t.type === 'expense') {
+            await adjustBudgetsForCategoryAndDate({
+                userId: req.userId,
+                category: t.category,
+                date: t.date,
+                deltaAmount: Math.abs(Number(t.amount) || 0),
+            })
+        }
         res.json({ success: true, timestamp: new Date().toISOString(), data: t.toClient() })
     } catch (err) {
         next(err)
@@ -100,6 +151,15 @@ exports.remove = async (req, res, next) => {
     try {
         const t = await Transaction.findOneAndDelete({ _id: req.params.id, userId: req.userId })
         if (!t) return res.status(404).json({ success: false, message: 'Not found', timestamp: new Date().toISOString() })
+        // Revert budget spent if an expense is removed
+        if (t.type === 'expense') {
+            await adjustBudgetsForCategoryAndDate({
+                userId: req.userId,
+                category: t.category,
+                date: t.date,
+                deltaAmount: -Math.abs(Number(t.amount) || 0),
+            })
+        }
         res.json({ success: true, timestamp: new Date().toISOString(), data: null })
     } catch (err) {
         next(err)

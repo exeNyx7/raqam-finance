@@ -194,8 +194,8 @@ export default function DashboardPage() {
                   <TableRow key={transaction.id}>
                     <TableCell className="font-medium">{transaction.description}</TableCell>
                     <TableCell>
-                      <span className={transaction.amount > 0 ? "text-green-600" : "text-red-600"}>
-                        {transaction.amount > 0 ? "+" : ""}{formatCurrency(Math.abs(transaction.amount))}
+                      <span className={transaction.type === "income" ? "text-green-600" : "text-red-600"}>
+                        {transaction.type === "income" ? "+" : ""}{formatCurrency(Math.abs(transaction.amount))}
                       </span>
                     </TableCell>
                     <TableCell>

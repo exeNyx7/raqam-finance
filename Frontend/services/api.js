@@ -1,4 +1,4 @@
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL
 
 async function request(path, options = {}, retry = true) {
     const accessToken = typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null
@@ -222,6 +222,11 @@ export async function addGoalContribution(id, { amount, note }) {
     return res.data
 }
 
+export async function withdrawFromGoal(id, { amount, note }) {
+    const res = await request(`/goals/${id}/withdraw`, { method: 'POST', body: JSON.stringify({ amount, note }) })
+    return res.data
+}
+
 // Bills API
 export async function getBills(params = {}) {
     const qs = new URLSearchParams()
@@ -290,6 +295,39 @@ export async function getLedger(id) {
 
 export async function createLedger(payload) {
     const res = await request('/ledgers', { method: 'POST', body: JSON.stringify(payload) })
+    return res.data
+}
+
+// Ledger transactions & payments
+export async function getLedgerTransactions(ledgerId) {
+    const res = await request(`/ledgers/${ledgerId}/transactions`)
+    return res.data
+}
+
+export async function addLedgerTransaction(ledgerId, payload) {
+    const res = await request(`/ledgers/${ledgerId}/transactions`, { method: 'POST', body: JSON.stringify(payload) })
+    return res.data
+}
+
+export async function markLedgerSharePaid(ledgerId, txId) {
+    const res = await request(`/ledgers/${ledgerId}/transactions/${txId}/mark-paid`, { method: 'POST' })
+    return res.data
+}
+
+export async function approveLedgerShare(ledgerId, txId, userId) {
+    const res = await request(`/ledgers/${ledgerId}/transactions/${txId}/approve/${userId}`, { method: 'POST' })
+    return res.data
+}
+
+export async function deleteLedgerTransaction(ledgerId, txId) {
+    const res = await request(`/ledgers/${ledgerId}/transactions/${txId}`, { method: 'DELETE' })
+    return res.data
+}
+
+export async function searchUsers(search) {
+    const qs = new URLSearchParams()
+    if (search) qs.append('search', search)
+    const res = await request(`/users/search${qs.toString() ? `?${qs.toString()}` : ''}`)
     return res.data
 }
 

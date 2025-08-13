@@ -1,7 +1,7 @@
 const mongoose = require('mongoose')
 
 async function connectToDatabase() {
-    const mongoUri = process.env.MONGODB_URI || 'mongodb+srv://sohaibcoding:ZoD25qS7tLErShun@cluster0.1dvpmqq.mongodb.net/'
+    const mongoUri = process.env.MONGODB_URI
 
     mongoose.set('strictQuery', true)
 

@@ -1,3 +1,4 @@
+require('dotenv').config()
 const express = require('express')
 const cors = require('cors')
 const cookieParser = require('cookie-parser')
@@ -52,7 +53,7 @@ app.use((err, _req, res, _next) => {
     res.status(status).json({ success: false, message: err.message || 'Internal Server Error', timestamp: new Date().toISOString() })
 })
 
-const PORT = process.env.PORT || 3001
+const PORT = process.env.PORT
 
 connectToDatabase()
     .then(() => {

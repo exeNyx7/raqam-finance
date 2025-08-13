@@ -5,7 +5,7 @@ export class ApiClient {
   private accessToken: string | null = null
   private refreshToken: string | null = null
 
-  constructor(baseURL: string = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api") {
+  constructor(baseURL: string = process.env.NEXT_PUBLIC_API_URL) {
     this.baseURL = baseURL
     this.loadTokensFromStorage()
   }

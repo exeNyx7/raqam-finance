@@ -16,7 +16,7 @@ type LedgerListItem = {
   id: string
   name: string
   description?: string | null
-  membersDetailed?: Array<{ id: string; name: string; email: string; avatar?: string | null; role: string }>
+  membersDetailed?: Array<{ id: string; name: string; email: string; avatar?: string | null }>
   role?: string
   balance?: number
   transactionCount?: number
@@ -104,25 +104,20 @@ export default function LedgersPage() {
               <div className="flex items-center justify-between">
                 <span className="text-sm text-muted-foreground">Members</span>
                 <div className="flex -space-x-2">
-                  {ledger.members.slice(0, 3).map((member: any, i: number) => (
+                  {(ledger.membersDetailed || []).slice(0, 3).map((member: any, i: number) => (
                     <Avatar key={i} className="h-6 w-6 border-2 border-background">
                       <AvatarImage src={member.avatar || "/placeholder.svg"} />
                       <AvatarFallback className="text-xs">{member.name?.charAt(0) || "?"}</AvatarFallback>
                     </Avatar>
                   ))}
-                  {ledger.members.length > 3 && (
+                  {(ledger.membersDetailed || []).length > 3 && (
                     <div className="h-6 w-6 rounded-full bg-muted border-2 border-background flex items-center justify-center">
-                      <span className="text-xs">+{ledger.members.length - 3}</span>
+                      <span className="text-xs">+{(ledger.membersDetailed || []).length - 3}</span>
                     </div>
                   )}
                 </div>
               </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">Role</span>
-                <Badge variant="outline" className="text-xs">
-                  {ledger.role}
-                </Badge>
-              </div>
+              {/* Role removed: equal permissions for all members */}
             </>
           )}
         </div>
