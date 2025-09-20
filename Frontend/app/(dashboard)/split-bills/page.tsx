@@ -1,7 +1,8 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useApp } from "@/contexts/app-context"
+import { useAuth } from "@/contexts/auth-context"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -15,7 +16,7 @@ import { Separator } from "@/components/ui/separator"
 import { useToast } from "@/hooks/use-toast"
 import { Plus, Trash2, Calculator, Users, Receipt } from "lucide-react"
 import type { BillItem } from "@/contexts/app-context"
-import { createBill as apiCreateBill } from "@/services/api"
+import { createBill as apiCreateBill, getAllPeople } from "@/services/api"
 
 interface BillItemWithId extends BillItem {
   tempId: string
@@ -23,6 +24,7 @@ interface BillItemWithId extends BillItem {
 
 export default function SplitBillsPage() {
   const { state, addBill } = useApp()
+  const { user } = useAuth()
   const [description, setDescription] = useState("")
   const [items, setItems] = useState<BillItemWithId[]>([])
   const [paidBy, setPaidBy] = useState("")
@@ -32,19 +34,56 @@ export default function SplitBillsPage() {
   const [newItemName, setNewItemName] = useState("")
   const [newItemAmount, setNewItemAmount] = useState("")
   const [searchTerm, setSearchTerm] = useState("")
-  const [showUserSearch, setShowUserSearch] = useState(false)
+  const [allPeople, setAllPeople] = useState<any[]>([])
+  const [loadingPeople, setLoadingPeople] = useState(false)
   const { toast } = useToast()
 
-  // Mock additional users for search
-  const mockUsers = [
-    { id: "user1", name: "John Doe", email: "john@example.com", avatar: "/placeholder.svg?height=32&width=32" },
-    { id: "user2", name: "Jane Smith", email: "jane@example.com", avatar: "/placeholder.svg?height=32&width=32" },
-    { id: "user3", name: "Mike Johnson", email: "mike@example.com", avatar: "/placeholder.svg?height=32&width=32" },
-  ]
+  // Special ID for current user
+  const CURRENT_USER_ID = "current_user"
 
-  const allUsers = [...state.people, ...mockUsers]
-  const filteredUsers = allUsers.filter(
-    (user) =>
+  // Load all available people on component mount
+  useEffect(() => {
+    loadAllPeople()
+  }, [])
+
+  const loadAllPeople = async () => {
+    try {
+      setLoadingPeople(true)
+      const result = await getAllPeople({ limit: 100 }) // Get more people for selection
+      let peopleData = result.data || result || []
+      
+      // Normalize data - ensure all people have consistent id field and filter valid entries
+      const normalizedPeople = peopleData
+        .filter((p: any) => p._id || p.id) // Filter out any people without valid id
+        .map((person: any) => ({
+          ...person,
+          id: person.id || person._id, // Use id if available, fallback to _id
+          _id: person._id || person.id, // Keep _id for backward compatibility
+        }))
+      
+      // Remove duplicates based on id
+      const uniquePeople = normalizedPeople.reduce((acc: any[], person: any) => {
+        if (!acc.find(p => p.id === person.id)) {
+          acc.push(person)
+        }
+        return acc
+      }, [])
+      
+      setAllPeople(uniquePeople)
+    } catch (error) {
+      console.error("Error loading people:", error)
+      toast({
+        title: "Error",
+        description: "Failed to load people. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setLoadingPeople(false)
+    }
+  }
+
+  const filteredUsers = allPeople.filter(
+    (user: any) =>
       user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       user.email.toLowerCase().includes(searchTerm.toLowerCase()),
   )
@@ -85,7 +124,10 @@ export default function SplitBillsPage() {
   }
 
   const toggleParticipant = (userId: string) => {
-    setParticipants((prev) => (prev.includes(userId) ? prev.filter((p) => p !== userId) : [...prev, userId]))
+    setParticipants((prev) => {
+      const newParticipants = prev.includes(userId) ? prev.filter((p) => p !== userId) : [...prev, userId]
+      return newParticipants
+    })
   }
 
   const calculateBill = () => {
@@ -290,63 +332,70 @@ export default function SplitBillsPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label>From Your People</Label>
-                <div className="grid grid-cols-2 gap-2">
-                  {state.people.map((person) => (
-                    <div key={person.id} className="flex items-center space-x-2 p-2 border rounded-lg">
-                      <Checkbox
-                        id={person.id}
-                        checked={participants.includes(person.id)}
-                        onCheckedChange={(checked) => toggleParticipant(person.id)}
-                      />
-                      <Avatar className="h-6 w-6">
-                        <AvatarImage src={person.avatar || "/placeholder.svg"} />
-                        <AvatarFallback className="text-xs">{person.name?.charAt(0) || "?"}</AvatarFallback>
-                      </Avatar>
-                      <Label htmlFor={person.id} className="flex-1 text-sm">
-                        {person.name}
-                      </Label>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <Separator />
-
-              <div className="space-y-2">
-                <Label>Search Other Users</Label>
+                <Label>Available People</Label>
                 <Input
                   placeholder="Search by name or email"
                   value={searchTerm}
-                  onChange={(e) => {
-                    setSearchTerm(e.target.value)
-                    setShowUserSearch(e.target.value.length > 0)
-                  }}
+                  onChange={(e) => setSearchTerm(e.target.value)}
                 />
-                {showUserSearch && filteredUsers.length > 0 && (
-                  <div className="border rounded-lg max-h-40 overflow-y-auto">
-                    {filteredUsers.slice(0, 5).map((user) => (
-                      <div
-                        key={user.id}
-                        className="flex items-center space-x-2 p-2 hover:bg-muted cursor-pointer"
-                        onClick={() => {
-                          if (!participants.includes(user.id)) {
-                            toggleParticipant(user.id)
-                          }
-                          setSearchTerm("")
-                          setShowUserSearch(false)
-                        }}
-                      >
+                {loadingPeople ? (
+                  <div className="text-center py-4 text-muted-foreground">Loading people...</div>
+                ) : (
+                  <div className="grid grid-cols-2 gap-2 max-h-60 overflow-y-auto">
+                    {/* Current User Option */}
+                    {user && (
+                      <div className="flex items-center space-x-2 p-3 border rounded-lg hover:bg-muted transition-colors">
+                        <Checkbox
+                          id={CURRENT_USER_ID}
+                          checked={participants.includes(CURRENT_USER_ID)}
+                          onCheckedChange={(checked) => toggleParticipant(CURRENT_USER_ID)}
+                        />
                         <Avatar className="h-6 w-6">
                           <AvatarImage src={user.avatar || "/placeholder.svg"} />
-                          <AvatarFallback className="text-xs">{user.name?.charAt(0) || "?"}</AvatarFallback>
+                          <AvatarFallback className="text-xs">{user.name?.charAt(0) || "Y"}</AvatarFallback>
                         </Avatar>
                         <div className="flex-1">
-                          <div className="text-sm font-medium">{user.name}</div>
+                          <Label htmlFor={CURRENT_USER_ID} className="text-sm cursor-pointer">
+                            You
+                          </Label>
                           <div className="text-xs text-muted-foreground">{user.email}</div>
                         </div>
                       </div>
-                    ))}
+                    )}
+                    
+                    {/* Other People */}
+                    {((searchTerm ? filteredUsers : allPeople).length === 0 && !loadingPeople) ? (
+                      <div className="col-span-2 text-center py-4 text-muted-foreground">
+                        {searchTerm ? "No people found matching your search" : "No people available"}
+                      </div>
+                    ) : (
+                      (searchTerm ? filteredUsers : allPeople)
+                        .filter((person: any) => person.id) // Only render people with valid id
+                        .map((person: any) => (
+                        <div key={person.id} className="flex items-center space-x-2 p-2 border rounded-lg">
+                          <Checkbox
+                            id={person.id}
+                            checked={participants.includes(person.id)}
+                            onCheckedChange={(checked) => toggleParticipant(person.id)}
+                          />
+                          <Avatar className="h-6 w-6">
+                            <AvatarImage src={person.avatar || "/placeholder.svg"} />
+                            <AvatarFallback className="text-xs">{person.name?.charAt(0) || "?"}</AvatarFallback>
+                          </Avatar>
+                          <div className="flex-1">
+                            <Label htmlFor={person.id} className="text-sm font-medium cursor-pointer">
+                              {person.name}
+                              {!person.isAppUser && (
+                                <Badge variant="secondary" className="ml-1 text-xs">Custom</Badge>
+                              )}
+                            </Label>
+                            {person.email && (
+                              <div className="text-xs text-muted-foreground">{person.email}</div>
+                            )}
+                          </div>
+                        </div>
+                      ))
+                    )}
                   </div>
                 )}
               </div>
@@ -356,7 +405,19 @@ export default function SplitBillsPage() {
                   <Label>Selected Participants ({participants.length})</Label>
                   <div className="flex flex-wrap gap-2">
                     {participants.map((participantId) => {
-                      const participant = allUsers.find((u) => u.id === participantId)
+                      if (participantId === CURRENT_USER_ID && user) {
+                        return (
+                          <Badge key={participantId} variant="secondary" className="flex items-center space-x-1">
+                            <Avatar className="h-4 w-4">
+                              <AvatarImage src={user.avatar || "/placeholder.svg"} />
+                              <AvatarFallback className="text-xs">{user.name?.charAt(0) || "Y"}</AvatarFallback>
+                            </Avatar>
+                            <span>You</span>
+                          </Badge>
+                        )
+                      }
+                      
+                      const participant = allPeople.find((u: any) => u.id === participantId)
                       return (
                         <Badge key={participantId} variant="secondary" className="flex items-center space-x-1">
                           <Avatar className="h-4 w-4">
@@ -378,9 +439,11 @@ export default function SplitBillsPage() {
                     <SelectValue placeholder="Select who paid" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="you">You</SelectItem>
-                    {participants.map((participantId) => {
-                      const participant = allUsers.find((u) => u.id === participantId)
+                    {participants.includes(CURRENT_USER_ID) && user && (
+                      <SelectItem value={CURRENT_USER_ID}>You</SelectItem>
+                    )}
+                    {participants.filter(id => id !== CURRENT_USER_ID).map((participantId) => {
+                      const participant = allPeople.find((u: any) => u.id === participantId)
                       return (
                         <SelectItem key={participantId} value={participantId}>
                           {participant?.name}
@@ -411,7 +474,28 @@ export default function SplitBillsPage() {
                     </div>
                     <div className="grid grid-cols-2 gap-2">
                       {participants.map((participantId) => {
-                        const participant = allUsers.find((u) => u.id === participantId)
+                        if (participantId === CURRENT_USER_ID && user) {
+                          return (
+                            <div key={participantId} className="flex items-center space-x-2 p-2 rounded-md border">
+                              <Checkbox
+                                id={`${item.tempId}-${participantId}`}
+                                checked={item.participants.includes(participantId)}
+                                onCheckedChange={(checked) =>
+                                  updateItemParticipants(item.tempId, participantId, !!checked)
+                                }
+                              />
+                              <Avatar className="h-5 w-5">
+                                <AvatarImage src={user.avatar || "/placeholder.svg"} />
+                                <AvatarFallback className="text-xs">{user.name?.charAt(0) || "Y"}</AvatarFallback>
+                              </Avatar>
+                              <Label htmlFor={`${item.tempId}-${participantId}`} className="text-sm cursor-pointer">
+                                You
+                              </Label>
+                            </div>
+                          )
+                        }
+                        
+                        const participant = allPeople.find((u: any) => u.id === participantId)
                         return (
                           <div key={participantId} className="flex items-center space-x-2">
                             <Checkbox
@@ -493,7 +577,30 @@ export default function SplitBillsPage() {
               </CardHeader>
               <CardContent className="space-y-3">
                 {Object.entries(splits).map(([participantId, amount]) => {
-                  const participant = allUsers.find((u) => u.id === participantId)
+                  if (participantId === CURRENT_USER_ID && user) {
+                    const isPayer = participantId === paidBy
+                    return (
+                      <div key={participantId} className="flex items-center justify-between p-3 border rounded-lg">
+                        <div className="flex items-center space-x-2">
+                          <Avatar className="h-6 w-6">
+                            <AvatarImage src={user.avatar || "/placeholder.svg"} />
+                            <AvatarFallback className="text-xs">{user.name?.charAt(0) || "Y"}</AvatarFallback>
+                          </Avatar>
+                          <span className="text-sm font-medium">You</span>
+                          {isPayer && (
+                            <Badge variant="outline" className="text-xs bg-green-100 border-green-300 text-green-700">
+                              Paid
+                            </Badge>
+                          )}
+                        </div>
+                        <span className={`font-medium ${isPayer ? "text-green-600" : ""}`}>
+                          {state.settings.currency} {amount.toFixed(2)}
+                        </span>
+                      </div>
+                    )
+                  }
+                  
+                  const participant = allPeople.find((u: any) => u.id === participantId)
                   const isPayer = participantId === paidBy
                   return (
                     <div key={participantId} className="flex items-center justify-between p-2 border rounded-lg">

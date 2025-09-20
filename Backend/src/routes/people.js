@@ -6,6 +6,8 @@ const router = express.Router()
 
 router.use(authMiddleware)
 
+router.get('/all', controller.getAllPeople) // New route for global + custom people
+router.get('/:id/transactions', controller.getPersonTransactions) // Get all transactions involving a person
 router.get('/', controller.list)
 router.get('/:id', controller.getOne)
 router.post('/', controller.create)

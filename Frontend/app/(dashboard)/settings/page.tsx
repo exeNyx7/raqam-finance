@@ -14,6 +14,7 @@ import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/hooks/use-toast"
 import { Globe, Database, Shield, Plus, Trash2, Download, Upload, AlertTriangle } from "lucide-react"
 import { getSettings, updateSettings as apiUpdateSettings, getCategories, addCategory as apiAddCategory, deleteCategory as apiDeleteCategory } from "@/services/api"
+import { useApp } from "@/contexts/app-context"
 
 const currencies = [
   { code: "PKR", name: "Pakistani Rupee", symbol: "₨" },
@@ -27,6 +28,7 @@ const currencies = [
 
 export default function SettingsPage() {
   const { toast } = useToast()
+  const { state, updateSettings } = useApp()
   const [newCategory, setNewCategory] = useState("")
   const [loading, setLoading] = useState(true)
   const [settings, setSettings] = useState({
@@ -45,6 +47,8 @@ export default function SettingsPage() {
         if (!mounted) return
         setSettings(settingsRes)
         setCategories(categoriesRes || [])
+        // Update app context with loaded settings
+        updateSettings(settingsRes)
       })
       .catch((e) => {
         toast({ title: "Failed to load settings", description: e.message, variant: "destructive" })
@@ -53,12 +57,14 @@ export default function SettingsPage() {
     return () => {
       mounted = false
     }
-  }, [toast])
+  }, [toast, updateSettings])
 
   const handleCurrencyChange = async (currency: string) => {
     try {
       const updated = await apiUpdateSettings({ currency })
       setSettings((prev) => ({ ...prev, currency: updated.currency }))
+      // Update app context so currency change is reflected globally
+      updateSettings({ currency: updated.currency })
       toast({ title: "Currency updated", description: `Currency changed to ${currency}` })
     } catch (e: any) {
       toast({ title: "Update failed", description: e.message, variant: "destructive" })

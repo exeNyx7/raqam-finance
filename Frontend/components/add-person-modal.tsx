@@ -17,45 +17,78 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { EmailSearchInput } from "@/components/email-search-input"
 import { useToast } from "@/hooks/use-toast"
 
 interface AddPersonModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
+  onPersonAdded?: (newPerson: any) => void
 }
 
-export function AddPersonModal({ open, onOpenChange }: AddPersonModalProps) {
+export function AddPersonModal({ open, onOpenChange, onPersonAdded }: AddPersonModalProps) {
   const [name, setName] = useState("")
   const [email, setEmail] = useState("")
   const [phone, setPhone] = useState("")
   const [notes, setNotes] = useState("")
   const [userType, setUserType] = useState<"app" | "custom">("app")
+  const [selectedUser, setSelectedUser] = useState<any>(null)
   const { toast } = useToast()
+
+  const handleUserTypeChange = (newType: "app" | "custom") => {
+    setUserType(newType)
+    // Reset form when switching types
+    setName("")
+    setEmail("")
+    setSelectedUser(null)
+  }
+
+  const handleUserSelect = (user: any) => {
+    setSelectedUser(user)
+    setName(user.name)
+    setEmail(user.email)
+    setUserType("app") // Selected users are always app users
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    await createPerson({
-      name,
-      email,
-      phone: phone || undefined,
-      notes: notes || undefined,
-      isAppUser: userType === "app",
-      avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(email)}`,
-    })
+    try {
+      const newPerson = await createPerson({
+        name,
+        email,
+        phone: phone || undefined,
+        notes: notes || undefined,
+        isAppUser: userType === "app",
+        avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(email)}`,
+      })
 
-    toast({
-      title: "Person added",
-      description: `${name} has been added to your contacts.`,
-    })
+      toast({
+        title: "Person added",
+        description: `${name} has been added to your contacts.`,
+      })
 
-    // Reset form
-    setName("")
-    setEmail("")
-    setPhone("")
-    setNotes("")
-    setUserType("app")
+      // Call the callback to update parent state
+      if (onPersonAdded) {
+        onPersonAdded(newPerson)
+      }
 
-    onOpenChange(false)
+      // Reset form
+      setName("")
+      setEmail("")
+      setPhone("")
+      setNotes("")
+      setUserType("app")
+      setSelectedUser(null)
+
+      onOpenChange(false)
+    } catch (error) {
+      console.error("Error creating person:", error)
+      toast({
+        title: "Error",
+        description: "Failed to add person. Please try again.",
+        variant: "destructive",
+      })
+    }
   }
 
   return (
@@ -69,7 +102,7 @@ export function AddPersonModal({ open, onOpenChange }: AddPersonModalProps) {
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="userType">User Type</Label>
-            <Select value={userType} onValueChange={(value: "app" | "custom") => setUserType(value)}>
+            <Select value={userType} onValueChange={handleUserTypeChange}>
               <SelectTrigger>
                 <SelectValue placeholder="Select user type" />
               </SelectTrigger>
@@ -88,19 +121,34 @@ export function AddPersonModal({ open, onOpenChange }: AddPersonModalProps) {
                 placeholder="Enter full name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
+                disabled={userType === "app" && selectedUser}
                 required
               />
+              {userType === "app" && selectedUser && (
+                <p className="text-xs text-muted-foreground">
+                  Name automatically filled from selected user
+                </p>
+              )}
             </div>
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="Enter email address"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-              />
+              {userType === "app" ? (
+                <EmailSearchInput
+                  value={email}
+                  onChange={setEmail}
+                  onUserSelect={handleUserSelect}
+                  placeholder="Search for existing Raqam users..."
+                />
+              ) : (
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="Enter email address"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                />
+              )}
             </div>
           </div>
 

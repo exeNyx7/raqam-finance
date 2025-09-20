@@ -53,7 +53,7 @@ app.use((err, _req, res, _next) => {
     res.status(status).json({ success: false, message: err.message || 'Internal Server Error', timestamp: new Date().toISOString() })
 })
 
-const PORT = process.env.PORT
+const PORT = process.env.PORT || 5000
 
 connectToDatabase()
     .then(() => {

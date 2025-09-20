@@ -259,6 +259,29 @@ export async function deleteBill(id) {
 }
 
 // People API
+// Get all people (registered users + user's custom people)
+export async function getAllPeople(params = {}) {
+    const qs = new URLSearchParams()
+    Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) {
+            if (typeof value === 'object') qs.append(key, JSON.stringify(value))
+            else qs.append(key, String(value))
+        }
+    })
+    // Add cache-busting parameter
+    qs.append('_t', Date.now().toString())
+    const url = `/people/all${qs.toString() ? `?${qs.toString()}` : ''}`
+    const res = await request(url, {
+        headers: {
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache',
+            'Expires': '0'
+        }
+    })
+    return res.data?.data || res.data
+}
+
+// Get user's specific people list (original function)
 export async function getPeople(params = {}) {
     const qs = new URLSearchParams()
     Object.entries(params).forEach(([key, value]) => {
@@ -287,6 +310,11 @@ export async function deletePerson(id) {
     return res.data
 }
 
+export async function getPersonTransactions(personId) {
+    const res = await request(`/people/${personId}/transactions`)
+    return res.data
+}
+
 // Ledger detail & creation
 export async function getLedger(id) {
     const res = await request(`/ledgers/${id}`)
@@ -295,6 +323,16 @@ export async function getLedger(id) {
 
 export async function createLedger(payload) {
     const res = await request('/ledgers', { method: 'POST', body: JSON.stringify(payload) })
+    return res.data
+}
+
+export async function updateLedger(id, payload) {
+    const res = await request(`/ledgers/${id}`, { method: 'PATCH', body: JSON.stringify(payload) })
+    return res.data
+}
+
+export async function deleteLedger(id) {
+    const res = await request(`/ledgers/${id}`, { method: 'DELETE' })
     return res.data
 }
 

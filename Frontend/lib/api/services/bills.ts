@@ -41,6 +41,53 @@ export class BillService {
     return response.data
   }
 
+  async updatePaymentStatus(billId: string, participantId: string, status: 'paid' | 'pending'): Promise<Bill> {
+    const response = await apiClient.patch<Bill>(`/bills/${billId}/payment-status`, {
+      participantId,
+      status
+    })
+    return response.data
+  }
+
+  async getSettlementDetails(billId: string): Promise<{
+    billId: string
+    billDescription: string
+    totalAmount: number
+    paidBy: string
+    status: string
+    settlements: Array<{
+      participantId: string
+      owedAmount: number
+      isPaid: boolean
+      remainingAmount: number
+    }>
+    summary: {
+      totalOwed: number
+      totalPaid: number
+      totalRemaining: number
+      isFullySettled: boolean
+      settlementPercentage: number
+    }
+  }> {
+    const response = await apiClient.get(`/bills/${billId}/settlement`)
+    return response.data
+  }
+
+  async getOptimalSettlements(billId: string): Promise<{
+    billId: string
+    paidBy: string
+    settlements: Array<{
+      from: string
+      to: string
+      amount: number
+      reason: string
+    }>
+    totalPending: number
+  }> {
+    const response = await apiClient.get(`/bills/${billId}/optimal-settlements`)
+    return response.data
+  }
+
   async sendReminder(billId: string, participantId: string): Promise<void> {
     await apiClient.post(`/bills/${billId}/reminders/${participantId}`)
   }

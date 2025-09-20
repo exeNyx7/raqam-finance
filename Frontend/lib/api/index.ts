@@ -65,13 +65,11 @@ export const handleApiError = (error: any, fallbackMessage = "An error occurred"
 }
 
 // Retry utility
-export const withRetry = async <T>(\
-  fn: () => Promise<T>,\
-  maxRetries: number = 3,\
-  delay: number = 1000\
-)
-: Promise<T> =>
-{
+export const withRetry = async <T>(
+  fn: () => Promise<T>,
+  maxRetries: number = 3,
+  delay: number = 1000
+): Promise<T> => {
   let lastError: any
 
   for (let i = 0; i <= maxRetries; i++) {
@@ -85,7 +83,7 @@ export const withRetry = async <T>(\
       }
 
       // Don't retry on authentication errors
-      if (error instanceof Error && error.name === "ApiError" && error.code === "AUTH_EXPIRED") {
+      if (error instanceof Error && error.name === "ApiError" && (error as any).code === "AUTH_EXPIRED") {
         throw error
       }
 

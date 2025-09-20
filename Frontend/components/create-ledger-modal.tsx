@@ -25,11 +25,12 @@ import { useAuth } from "@/contexts/auth-context"
 interface CreateLedgerModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
+  onLedgerCreated?: () => void
 }
 
 type SearchResult = { id: string; name: string; email: string; avatar?: string | null; isAppUser: boolean }
 
-export function CreateLedgerModal({ open, onOpenChange }: CreateLedgerModalProps) {
+export function CreateLedgerModal({ open, onOpenChange, onLedgerCreated }: CreateLedgerModalProps) {
   const { user } = useAuth()
   const [name, setName] = useState("")
   const [description, setDescription] = useState("")
@@ -106,6 +107,9 @@ export function CreateLedgerModal({ open, onOpenChange }: CreateLedgerModalProps
       title: "Ledger created",
       description: `${name} has been created successfully.`,
     })
+
+    // Call the callback to refresh ledgers
+    onLedgerCreated?.()
 
     // Reset form
     setName("")
