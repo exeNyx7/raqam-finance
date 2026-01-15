@@ -26,7 +26,7 @@ A modern, cloud-synced collaborative finance management application built with N
 ### Prerequisites
 
 - Node.js 18+ 
-- npm or yarn
+- npm
 
 ### Installation
 
