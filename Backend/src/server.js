@@ -24,6 +24,7 @@ const app = express()
 app.use(cors({ origin: process.env.CORS_ORIGIN?.split(',') || ['http://localhost:3000'], credentials: false }))
 app.use(express.json())
 app.use(cookieParser())
+app.use('/uploads', express.static('uploads'))
 
 // Routes
 app.use('/api/auth', authRoutes)
