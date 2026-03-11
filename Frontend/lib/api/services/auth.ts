@@ -5,8 +5,8 @@ export class AuthService {
   async login(credentials: LoginRequest): Promise<AuthResponse> {
     const response = await apiClient.post<AuthResponse>("/auth/login", credentials)
 
-    // Store tokens
-    apiClient.setTokens(response.data.accessToken, response.data.refreshToken)
+    // Store access token (refresh token is handled via HttpOnly cookie)
+    apiClient.setTokens(response.data.accessToken)
 
     return response.data
   }
@@ -14,8 +14,8 @@ export class AuthService {
   async register(userData: RegisterRequest): Promise<AuthResponse> {
     const response = await apiClient.post<AuthResponse>("/auth/register", userData)
 
-    // Store tokens
-    apiClient.setTokens(response.data.accessToken, response.data.refreshToken)
+    // Store access token (refresh token is handled via HttpOnly cookie)
+    apiClient.setTokens(response.data.accessToken)
 
     return response.data
   }

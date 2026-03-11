@@ -10,72 +10,78 @@ import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { BarChart3, PieChart, TrendingUp, TrendingDown, Calendar, Download } from "lucide-react"
 import { getDashboardStats, getExpenseBreakdown, getMonthlyTrends, getTransactions, getBudgets, getGoals } from "@/services/api"
+import { downloadCSV } from "@/lib/utils"
 
 export default function ReportsPage() {
   const { state } = useApp()
   const [timeRange, setTimeRange] = useState("month")
-  const [loading, setLoading] = useState(false)
-  const [overview, setOverview] = useState<{
-    totalBalance: number
-    monthlyIncome: number
-    monthlyExpenses: number
-    activeLedgers?: number
-    trends: { income: number; expenses: number; balance: number }
-  } | null>(null)
-  const [expenseBreakdown, setExpenseBreakdown] = useState<Array<{ category: string; amount: number; percentage: number }>>([])
-  const [monthly, setMonthly] = useState<Array<{ month: string; income: number; expenses: number; savings: number }>>([])
-  const [topExpenses, setTopExpenses] = useState<Array<{ description: string; amount: number; date: string; category: string }>>([])
-  const [budgets, setBudgets] = useState<Array<{ id: string; name: string; amount: number; spent: number; period: string; category?: string }>>([])
-  const [goals, setGoals] = useState<Array<{ id: string; name: string; category: string; currentAmount: number; targetAmount: number; status: string }>>([])
+
+  const [totalIncome, setTotalIncome] = useState(0)
+  const [totalExpenses, setTotalExpenses] = useState(0)
+  const [totalSavings, setTotalSavings] = useState(0)
+  const [savingsRate, setSavingsRate] = useState(0)
+  const [overview, setOverview] = useState<any>(null)
+
+  const [expenseBreakdown, setExpenseBreakdown] = useState<any[]>([])
+  const [topExpenses, setTopExpenses] = useState<any[]>([])
+  const [monthly, setMonthly] = useState<any[]>([])
+
+  const [goals, setGoals] = useState<any[]>([])
+  const [goalProgress, setGoalProgress] = useState<any[]>([])
+  const [budgetProgress, setBudgetProgress] = useState<any[]>([])
 
   useEffect(() => {
-    let cancelled = false
-    async function load() {
-      setLoading(true)
+    async function fetchData() {
       try {
-        const [ov, breakdown, trends, tx, budgetsRes, goalsRes] = await Promise.all([
+        const [stats, expenses, trends, budgetData, goalData] = await Promise.all([
           getDashboardStats(timeRange),
           getExpenseBreakdown(timeRange),
           getMonthlyTrends(6),
-          getTransactions({ sort: "-amount", limit: 5, filter: { type: "expense" } }),
-          getBudgets({ limit: 50 }),
-          getGoals({ limit: 50 }),
+          getBudgets(),
+          getGoals()
         ])
-        if (cancelled) return
-        setOverview(ov)
-        setExpenseBreakdown((breakdown || []).map((i: any) => ({ category: i.category, amount: i.amount, percentage: i.percentage })))
+
+        setOverview(stats)
+        setTotalIncome(stats.income || 0)
+        setTotalExpenses(stats.expenses || 0)
+        setTotalSavings(stats.savings || 0)
+        setSavingsRate(stats.income > 0 ? (stats.savings / stats.income) * 100 : 0)
+
+        setExpenseBreakdown(expenses.breakdown || [])
+        setTopExpenses(expenses.topExpenses || [])
         setMonthly(trends || [])
-        setTopExpenses(
-          ((tx && tx.data) || []).map((t: any) => ({ description: t.description, amount: t.amount, date: new Date(t.date).toLocaleDateString(), category: t.category })),
-        )
-        setBudgets(((budgetsRes && budgetsRes.data) || []).map((b: any) => b))
-        setGoals(((goalsRes && goalsRes.data) || []).map((g: any) => g))
-      } catch (e) {
-        // no-op
-      } finally {
-        if (!cancelled) setLoading(false)
+
+        // Calculate budget progress
+        const budgets = budgetData.data || []
+        setBudgetProgress(budgets.map((b: any) => ({
+          ...b,
+          percentage: b.amount > 0 ? (b.spent / b.amount) * 100 : 0
+        })))
+
+        // Calculate goal progress
+        const allGoals = goalData.data || []
+        setGoals(allGoals)
+        setGoalProgress(allGoals.map((g: any) => ({
+          ...g,
+          percentage: g.targetAmount > 0 ? (g.currentAmount / g.targetAmount) * 100 : 0
+        })))
+
+      } catch (error) {
+        console.error("Failed to fetch report data", error)
       }
     }
-    load()
-    return () => {
-      cancelled = true
-    }
+    fetchData()
   }, [timeRange])
 
-  const totalExpenses = useMemo(() => expenseBreakdown.reduce((sum, item) => sum + item.amount, 0), [expenseBreakdown])
-  const totalIncome = overview?.monthlyIncome || 0
-  const totalSavings = Math.max(0, totalIncome - totalExpenses)
-  const savingsRate = totalIncome ? (totalSavings / totalIncome) * 100 : 0
-
-  const budgetProgress = budgets.map((budget) => ({
-    ...budget,
-    percentage: (budget.spent / Math.max(1, budget.amount)) * 100,
-  }))
-
-  const goalProgress = goals.map((goal) => ({
-    ...goal,
-    percentage: (goal.currentAmount / Math.max(1, goal.targetAmount)) * 100,
-  }))
+  const handleExport = () => {
+    if (expenseBreakdown.length === 0) return
+    const data = expenseBreakdown.map(e => ({
+      Category: e.category,
+      Amount: e.amount,
+      Percentage: `${e.percentage}%`
+    }))
+    downloadCSV(data, `expenses-${timeRange}-${new Date().toISOString().split('T')[0]}.csv`)
+  }
 
   return (
     <div className="p-6 space-y-6">
@@ -85,6 +91,7 @@ export default function ReportsPage() {
           <p className="text-muted-foreground">Analyze your financial data and trends</p>
         </div>
         <div className="flex items-center space-x-2">
+          {/* ... Select ... */}
           <Select value={timeRange} onValueChange={setTimeRange}>
             <SelectTrigger className="w-40">
               <SelectValue placeholder="Time Range" />
@@ -96,7 +103,7 @@ export default function ReportsPage() {
               <SelectItem value="year">This Year</SelectItem>
             </SelectContent>
           </Select>
-          <Button variant="outline">
+          <Button variant="outline" onClick={handleExport}>
             <Download className="mr-2 h-4 w-4" />
             Export
           </Button>

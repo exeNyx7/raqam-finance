@@ -13,65 +13,77 @@ import { Plus, Filter, Download, Settings } from "lucide-react"
 import { AddTransactionModal } from "@/components/add-transaction-modal"
 import { getLedger, getTransactions, getLedgerTransactions, approveLedgerShare, markLedgerSharePaid, deleteLedgerTransaction } from "@/services/api"
 import { useAuth } from "@/contexts/auth-context"
-
-type LedgerDetail = {
-  id: string
-  name: string
-  description?: string | null
-  balance?: number
-  totalExpenses?: number
-  membersDetailed: Array<{ id: string; name: string; email: string; avatar?: string | null }>
-}
-
-// Transactions will be loaded from API filtered by ledgerId
+import { Ledger } from "@/services/types"
+import { downloadCSV } from "@/lib/utils"
 
 export default function LedgerDetailPage() {
   const params = useParams()
   const { user } = useAuth()
-  const [showAddTransaction, setShowAddTransaction] = useState(false)
-  const [sortBy, setSortBy] = useState("date")
-  const [filterCategory, setFilterCategory] = useState("all")
-  const [searchTerm, setSearchTerm] = useState("")
-  const [ledgerData, setLedgerData] = useState<LedgerDetail | null>(null)
+  const [ledgerData, setLedgerData] = useState<Ledger | null>(null)
   const [transactions, setTransactions] = useState<Array<{ id: string; description: string; totalAmount: number; category: string; date: string; paidBy?: { id: string; name?: string | null }; shares?: Array<{ user: { id: string; name?: string | null }, amount: number, status: string }> }>>([])
+  const [showAddTransaction, setShowAddTransaction] = useState(false)
+  const [searchTerm, setSearchTerm] = useState("")
+  const [filterCategory, setFilterCategory] = useState("all")
 
   useEffect(() => {
-    const id = params?.id as string
-    if (!id) return
-    let mounted = true
-      ; (async () => {
-        try {
-          const data = await getLedger(id)
-          if (mounted) setLedgerData(data)
-          const ltx = await getLedgerTransactions(id)
-          if (mounted) setTransactions(Array.isArray(ltx) ? ltx : [])
-        } catch (e) {
-          console.error(e)
-        }
-      })()
-    return () => {
-      mounted = false
+    async function fetchData() {
+      if (!params?.id) return
+      try {
+        const id = String(params.id)
+        const [l, tx] = await Promise.all([
+          getLedger(id),
+          getLedgerTransactions(id)
+        ])
+        setLedgerData(l)
+        setTransactions(Array.isArray(tx) ? tx : [])
+      } catch (error) {
+        console.error("Failed to fetch ledger details", error)
+      }
     }
+    fetchData()
   }, [params?.id])
 
-  const filteredTransactions = transactions.filter((transaction) => {
-    const matchesSearch = transaction.description.toLowerCase().includes(searchTerm.toLowerCase())
-    const matchesCategory = filterCategory === "all" || transaction.category === filterCategory
-    return matchesSearch && matchesCategory
-  })
+  const filteredTransactions = useMemo(() => {
+    return transactions.filter(t => {
+      const matchesSearch = t.description.toLowerCase().includes(searchTerm.toLowerCase())
+      const matchesCategory = filterCategory === "all" || t.category === filterCategory
+      return matchesSearch && matchesCategory
+    })
+  }, [transactions, searchTerm, filterCategory])
 
-  const handleMarkAsPaid = async (transactionId: string) => {
+  const handleMarkAsPaid = async (txId: string) => {
     if (!params?.id) return
-    await markLedgerSharePaid(String(params.id), transactionId)
-    const ltx = await getLedgerTransactions(String(params.id))
-    setTransactions(Array.isArray(ltx) ? ltx : [])
+    try {
+      await markLedgerSharePaid(String(params.id), txId)
+      const tx = await getLedgerTransactions(String(params.id))
+      setTransactions(Array.isArray(tx) ? tx : [])
+    } catch (e) {
+      console.error("Failed to mark as paid", e)
+    }
   }
 
-  const handleApprovePayment = async (transactionId: string, userId: string) => {
+  const handleApprovePayment = async (txId: string, userId: string) => {
     if (!params?.id) return
-    await approveLedgerShare(String(params.id), transactionId, userId)
-    const ltx = await getLedgerTransactions(String(params.id))
-    setTransactions(Array.isArray(ltx) ? ltx : [])
+    try {
+      await approveLedgerShare(String(params.id), txId, userId)
+      const tx = await getLedgerTransactions(String(params.id))
+      setTransactions(Array.isArray(tx) ? tx : [])
+    } catch (e) {
+      console.error("Failed to approve payment", e)
+    }
+  }
+
+  const handleExport = () => {
+    if (transactions.length === 0) return
+    const data = transactions.map(t => ({
+      Date: new Date(t.date).toLocaleDateString(),
+      Description: t.description,
+      Amount: t.totalAmount,
+      Category: t.category,
+      PaidBy: t.paidBy?.name || "Unknown",
+      MyStatus: (t.shares || []).find((s) => s.user?.id === user?.id)?.status || "-"
+    }))
+    downloadCSV(data, `${ledgerData?.name || 'ledger'}-export.csv`)
   }
 
   return (
@@ -79,11 +91,21 @@ export default function LedgerDetailPage() {
       {/* Header */}
       <div className="flex items-start justify-between">
         <div className="space-y-1">
-          <h1 className="text-3xl font-bold tracking-tight">{ledgerData?.name || "Ledger"}</h1>
+          <h1 className="text-3xl font-bold tracking-tight">
+            {ledgerData?.name || "Ledger"}
+            {ledgerData?.membersDetailed && ledgerData.membersDetailed.length === 2 && (
+              <span className="ml-3 text-lg font-normal text-muted-foreground">
+                (Personal with {ledgerData.membersDetailed.find(m => m.id !== user?.id)?.name || "Partner"})
+              </span>
+            )}
+          </h1>
           <p className="text-muted-foreground">{ledgerData?.description}</p>
+          {ledgerData?.membersDetailed && ledgerData.membersDetailed.length > 2 && (
+            <Badge variant="secondary" className="mt-1">Group Ledger</Badge>
+          )}
         </div>
         <div className="flex items-center space-x-2">
-          <Button variant="outline" size="sm">
+          <Button variant="outline" size="sm" onClick={handleExport}>
             <Download className="mr-2 h-4 w-4" />
             Export
           </Button>
@@ -98,7 +120,7 @@ export default function LedgerDetailPage() {
         </div>
       </div>
 
-      {/* Summary Cards */}
+      {/* Stats Cards - Adjusted for Personal Ledger */}
       <div className="grid gap-4 md:grid-cols-3">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -127,50 +149,55 @@ export default function LedgerDetailPage() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Members</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex -space-x-2 mb-2">
-              {ledgerData?.membersDetailed?.map((member) => (
-                <Avatar key={member.id} className="h-8 w-8 border-2 border-background">
-                  <AvatarImage src={member.avatar || "/placeholder.svg"} />
-                  <AvatarFallback className="text-xs">{member.name?.charAt(0) || "?"}</AvatarFallback>
-                </Avatar>
-              ))}
-            </div>
-            <p className="text-xs text-muted-foreground">{ledgerData?.membersDetailed?.length || 0} members</p>
-          </CardContent>
-        </Card>
+        {/* Show Members Card ONLY if it's a shared ledger (>2 people) */}
+        {ledgerData?.membersDetailed && ledgerData.membersDetailed.length > 2 && (
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Members</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex -space-x-2 mb-2">
+                {ledgerData?.membersDetailed?.map((member) => (
+                  <Avatar key={member.id} className="h-8 w-8 border-2 border-background">
+                    <AvatarImage src={member.avatar || "/placeholder.svg"} />
+                    <AvatarFallback className="text-xs">{member.name?.charAt(0) || "?"}</AvatarFallback>
+                  </Avatar>
+                ))}
+              </div>
+              <p className="text-xs text-muted-foreground">{ledgerData?.membersDetailed?.length || 0} members</p>
+            </CardContent>
+          </Card>
+        )}
       </div>
 
-      {/* Members List */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Members</CardTitle>
-          <CardDescription>People with access to this ledger</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-2">
-            {ledgerData?.membersDetailed?.map((member) => (
-              <div key={member.id} className="flex items-center justify-between p-2 rounded-lg border">
-                <div className="flex items-center space-x-3">
-                  <Avatar className="h-8 w-8">
-                    <AvatarImage src={member.avatar || "/placeholder.svg"} />
-                    <AvatarFallback>{member.name?.charAt(0) || "?"}</AvatarFallback>
-                  </Avatar>
-                  <div>
-                    <div className="font-medium">{member.name}</div>
-                    <div className="text-sm text-muted-foreground">{member.email}</div>
+      {/* Members List - Only for Shared Ledgers */}
+      {ledgerData?.membersDetailed && ledgerData.membersDetailed.length > 2 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Members</CardTitle>
+            <CardDescription>People with access to this ledger</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              {ledgerData?.membersDetailed?.map((member) => (
+                <div key={member.id} className="flex items-center justify-between p-2 rounded-lg border">
+                  <div className="flex items-center space-x-3">
+                    <Avatar className="h-8 w-8">
+                      <AvatarImage src={member.avatar || "/placeholder.svg"} />
+                      <AvatarFallback>{member.name?.charAt(0) || "?"}</AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <div className="font-medium">{member.name}</div>
+                      <div className="text-sm text-muted-foreground">{member.email}</div>
+                    </div>
                   </div>
+                  {/* Role removed: equal permissions */}
                 </div>
-                {/* Role removed: equal permissions */}
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Transactions */}
       <Card>
@@ -224,7 +251,8 @@ export default function LedgerDetailPage() {
                 const myShare = (transaction.shares || []).find((s) => s.user?.id === user?.id)
                 const canMarkPaid = !!myShare && myShare.status === "pending" && !isPayer
                 const canApprove = !!isPayer
-                const canDelete = !!isPayer
+                const hasPayments = (transaction.shares || []).some((s) => s.status === "paid" || s.status === "approved")
+                const canDelete = !!isPayer && !hasPayments
                 const statuses = (transaction.shares || []).map((s) => s.status)
                 const overall = statuses.length === 0 ? "-" : statuses.every((s) => s === "approved") ? "approved" : statuses.some((s) => s === "paid") ? "pending approval" : "pending"
                 return (

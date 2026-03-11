@@ -2,7 +2,7 @@
 
 import type React from "react"
 import { createContext, useContext, useEffect, useState } from "react"
-import { login as apiLogin, register as apiRegister } from "@/services/api"
+import { apiClient } from "@/lib/api/client"
 
 interface User {
   id: string
@@ -27,35 +27,46 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    // Optimistically restore cached user, then validate via /auth/me
     const savedUser = localStorage.getItem("raqam_user")
     if (savedUser) {
-      setUser(JSON.parse(savedUser))
+      try { setUser(JSON.parse(savedUser)) } catch (_) {}
     }
-    setLoading(false)
+
+    apiClient.get<User>("/auth/me")
+      .then((res) => {
+        const freshUser = (res as any).data ?? res
+        setUser(freshUser)
+        localStorage.setItem("raqam_user", JSON.stringify(freshUser))
+      })
+      .catch(() => {
+        setUser(null)
+        localStorage.removeItem("raqam_user")
+      })
+      .finally(() => setLoading(false))
   }, [])
 
   const signIn = async (email: string, password: string) => {
-    const data = await apiLogin({ email, password })
-    // persist tokens
-    localStorage.setItem("accessToken", data.accessToken)
-    localStorage.setItem("refreshToken", data.refreshToken)
+    const res = await apiClient.post<any>("/auth/login", { email, password })
+    const data = (res as any).data ?? res
+    apiClient.setTokens(data.accessToken)
     setUser(data.user)
     localStorage.setItem("raqam_user", JSON.stringify(data.user))
   }
 
   const signUp = async (email: string, password: string, name: string) => {
-    const data = await apiRegister({ name, email, password })
-    localStorage.setItem("accessToken", data.accessToken)
-    localStorage.setItem("refreshToken", data.refreshToken)
+    const res = await apiClient.post<any>("/auth/register", { name, email, password })
+    const data = (res as any).data ?? res
+    apiClient.setTokens(data.accessToken)
     setUser(data.user)
     localStorage.setItem("raqam_user", JSON.stringify(data.user))
   }
 
   const signOut = async () => {
+    await apiClient.post("/auth/logout").catch(() => {})
+    apiClient.clearTokens()
     setUser(null)
     localStorage.removeItem("raqam_user")
-    localStorage.removeItem("accessToken")
-    localStorage.removeItem("refreshToken")
   }
 
   const resetPassword = async (email: string) => {

@@ -45,8 +45,13 @@ exports.addCategory = async (req, res, next) => {
             return res.status(400).json({ success: false, message: 'Category name required', timestamp: new Date().toISOString() })
         }
         const settings = await getOrCreateSettings(req.userId)
-        const exists = settings.categories.includes(name)
-        if (!exists) settings.categories.push(name)
+        const nameTrimmed = String(name).trim()
+        // Case-insensitive check
+        const exists = settings.categories.some((c) => c.toLowerCase() === nameTrimmed.toLowerCase())
+        if (exists) {
+            return res.status(400).json({ success: false, message: 'Category already exists', timestamp: new Date().toISOString() })
+        }
+        settings.categories.push(nameTrimmed)
         await settings.save()
         return res.status(201).json({ success: true, timestamp: new Date().toISOString(), data: settings.categories })
     } catch (err) {
@@ -57,8 +62,11 @@ exports.addCategory = async (req, res, next) => {
 exports.deleteCategory = async (req, res, next) => {
     try {
         const { name } = req.params
+        if (!name) return res.status(400).json({ success: false, message: 'Category name required' })
+        const nameLower = name.trim().toLowerCase()
         const settings = await getOrCreateSettings(req.userId)
-        settings.categories = settings.categories.filter((c) => c !== name)
+        // Case-insensitive filter
+        settings.categories = settings.categories.filter((c) => c.toLowerCase() !== nameLower)
         await settings.save()
         return res.json({ success: true, timestamp: new Date().toISOString(), data: settings.categories })
     } catch (err) {

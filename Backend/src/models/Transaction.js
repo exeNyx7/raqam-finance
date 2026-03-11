@@ -15,6 +15,9 @@ const transactionSchema = new mongoose.Schema(
     { timestamps: true },
 )
 
+// Prevent duplicate transactions (same user, date, amount, description)
+transactionSchema.index({ userId: 1, date: 1, amount: 1, description: 1 }, { unique: true })
+
 transactionSchema.methods.toClient = function toClient() {
     return {
         id: this._id.toString(),

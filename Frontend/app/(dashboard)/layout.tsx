@@ -2,6 +2,7 @@ import type React from "react"
 import { ProtectedRoute } from "@/components/protected-route"
 import { AppSidebar } from "@/components/app-sidebar"
 import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar"
+import { NotificationsPopover } from "@/components/notifications-popover"
 
 export default function DashboardLayout({
   children,
@@ -15,6 +16,9 @@ export default function DashboardLayout({
         <SidebarInset>
           <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
             <SidebarTrigger className="-ml-1" />
+            <div className="ml-auto flex items-center gap-2">
+              <NotificationsPopover />
+            </div>
           </header>
           <main className="flex-1 overflow-auto">{children}</main>
         </SidebarInset>

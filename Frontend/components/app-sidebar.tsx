@@ -44,6 +44,7 @@ import { useTheme } from "next-themes"
 
 const navigation = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+  { name: "Transactions", href: "/transactions", icon: Receipt },
   { name: "Budget", href: "/budget", icon: Target },
   { name: "Recurring", href: "/recurring", icon: Repeat },
   { name: "Goals", href: "/goals", icon: Trophy },

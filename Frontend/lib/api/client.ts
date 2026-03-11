@@ -3,7 +3,6 @@ import type { ApiResponse, QueryParams } from "./types"
 export class ApiClient {
   private baseURL: string
   private accessToken: string | null = null
-  private refreshToken: string | null = null
 
   constructor(baseURL: string = process.env.NEXT_PUBLIC_API_URL) {
     this.baseURL = baseURL
@@ -13,43 +12,34 @@ export class ApiClient {
   private loadTokensFromStorage() {
     if (typeof window !== "undefined") {
       this.accessToken = localStorage.getItem("accessToken")
-      this.refreshToken = localStorage.getItem("refreshToken")
     }
   }
 
-  private saveTokensToStorage(accessToken: string, refreshToken: string) {
+  private saveTokensToStorage(accessToken: string) {
     if (typeof window !== "undefined") {
       localStorage.setItem("accessToken", accessToken)
-      localStorage.setItem("refreshToken", refreshToken)
     }
     this.accessToken = accessToken
-    this.refreshToken = refreshToken
   }
 
   private clearTokensFromStorage() {
     if (typeof window !== "undefined") {
       localStorage.removeItem("accessToken")
-      localStorage.removeItem("refreshToken")
     }
     this.accessToken = null
-    this.refreshToken = null
   }
 
   private async refreshAccessToken(): Promise<boolean> {
-    if (!this.refreshToken) return false
-
     try {
       const response = await fetch(`${this.baseURL}/auth/refresh`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ refreshToken: this.refreshToken }),
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
       })
 
       if (response.ok) {
         const data = await response.json()
-        this.saveTokensToStorage(data.accessToken, data.refreshToken)
+        this.saveTokensToStorage(data.data.accessToken)
         return true
       }
     } catch (error) {
@@ -99,6 +89,7 @@ export class ApiClient {
       const response = await fetch(url, {
         ...options,
         headers,
+        credentials: "include",
       })
 
       // Handle 401 Unauthorized - try to refresh token
@@ -131,8 +122,8 @@ export class ApiClient {
   }
 
   // Authentication methods
-  setTokens(accessToken: string, refreshToken: string) {
-    this.saveTokensToStorage(accessToken, refreshToken)
+  setTokens(accessToken: string) {
+    this.saveTokensToStorage(accessToken)
   }
 
   clearTokens() {
@@ -204,6 +195,7 @@ export class ApiClient {
     const response = await fetch(`${this.baseURL}${endpoint}`, {
       method: "POST",
       headers,
+      credentials: "include",
       body: formData,
     })
 

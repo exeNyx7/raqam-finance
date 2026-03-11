@@ -24,6 +24,7 @@ exports.list = async (req, res, next) => {
         const limit = Number(req.query.limit || 20)
         const sort = req.query.sort || '-createdAt'
 
+        // Strict filter: User MUST be owner OR member
         const filter = { $or: [{ userId: req.userId }, { 'members.userId': req.userId }] }
 
         const [items, total] = await Promise.all([
@@ -41,7 +42,7 @@ exports.list = async (req, res, next) => {
             txByLedger.map((t) => [t._id, { transactionCount: t.count, balance: (t.income || 0) - (t.expenses || 0), lastActivity: t.lastActivity }]),
         )
 
-        // Build members details for the current page of ledgers
+        // Build members details
         const allMemberIds = Array.from(
             new Set(
                 items.flatMap((l) => [l.userId.toString(), ...l.members.map((m) => m.userId.toString())]),
@@ -89,8 +90,10 @@ exports.list = async (req, res, next) => {
 
 exports.getOne = async (req, res, next) => {
     try {
+        // Strict Access Control: Must be owner or member
         const l = await Ledger.findOne({ _id: req.params.id, $or: [{ userId: req.userId }, { 'members.userId': req.userId }] })
         if (!l) return res.status(404).json({ success: false, message: 'Not found', timestamp: new Date().toISOString() })
+
         const memberUserIds = Array.from(new Set([l.userId.toString(), ...l.members.map((m) => m.userId.toString())]))
         const users = await User.find({ _id: { $in: memberUserIds } })
         const usersMap = Object.fromEntries(users.map((u) => [u._id.toString(), u]))
@@ -173,16 +176,18 @@ exports.update = async (req, res, next) => {
         const allowed = ['name', 'description', 'members']
         const updates = {}
         for (const key of allowed) if (key in req.body) updates[key] = req.body[key]
+        // Strict: Only Owner can update settings
         const l = await Ledger.findOneAndUpdate({ _id: req.params.id, userId: req.userId }, updates, { new: true })
-        if (!l) return res.status(404).json({ success: false, message: 'Not found', timestamp: new Date().toISOString() })
+        if (!l) return res.status(404).json({ success: false, message: 'Not found or permission denied', timestamp: new Date().toISOString() })
         res.json({ success: true, timestamp: new Date().toISOString(), data: l.toClient() })
     } catch (err) { next(err) }
 }
 
 exports.remove = async (req, res, next) => {
     try {
+        // Strict: Only Owner can delete
         const l = await Ledger.findOneAndDelete({ _id: req.params.id, userId: req.userId })
-        if (!l) return res.status(404).json({ success: false, message: 'Not found', timestamp: new Date().toISOString() })
+        if (!l) return res.status(404).json({ success: false, message: 'Not found or permission denied', timestamp: new Date().toISOString() })
         res.json({ success: true, timestamp: new Date().toISOString(), data: null })
     } catch (err) { next(err) }
 }
@@ -218,8 +223,10 @@ exports.addTransaction = async (req, res, next) => {
         if (!description || totalAmount == null || !category || !date) {
             return res.status(400).json({ success: false, message: 'Missing required fields', timestamp: new Date().toISOString() })
         }
+
+        // Strict Access Check
         const ledger = await Ledger.findOne({ _id: id, $or: [{ userId: req.userId }, { 'members.userId': req.userId }] })
-        if (!ledger) return res.status(404).json({ success: false, message: 'Ledger not found', timestamp: new Date().toISOString() })
+        if (!ledger) return res.status(404).json({ success: false, message: 'Ledger not found or permission denied', timestamp: new Date().toISOString() })
 
         const memberIds = new Set([ledger.userId.toString(), ...ledger.members.map((m) => m.userId.toString())])
         // Normalize participants: default equal split among provided or all members excluding payer if none provided
@@ -293,15 +300,21 @@ exports.addTransaction = async (req, res, next) => {
 exports.markSharePaid = async (req, res, next) => {
     try {
         const { id, txId } = req.params
+        // Access Check: Must be associated with this ledger to perform actions
+        const ledger = await Ledger.findOne({ _id: id, $or: [{ userId: req.userId }, { 'members.userId': req.userId }] })
+        if (!ledger) return res.status(404).json({ success: false, message: 'Ledger not found or permission denied', timestamp: new Date().toISOString() })
+
         const lt = await LedgerTransaction.findOne({ _id: txId, ledgerId: id })
-        if (!lt) return res.status(404).json({ success: false, message: 'Not found', timestamp: new Date().toISOString() })
+        if (!lt) return res.status(404).json({ success: false, message: 'Transaction not found', timestamp: new Date().toISOString() })
+
         const index = (lt.shares || []).findIndex((s) => s.userId.toString() === req.userId.toString())
-        if (index === -1) return res.status(403).json({ success: false, message: 'Not a participant', timestamp: new Date().toISOString() })
+        if (index === -1) return res.status(403).json({ success: false, message: 'Not a participant in this transaction', timestamp: new Date().toISOString() })
+
         lt.shares[index].status = 'paid'
         lt.shares[index].paidAt = new Date()
         await lt.save()
 
-        // Notify payer
+        // Notify payer that share is paid
         await Notification.create({
             userId: lt.paidByUserId,
             type: 'payment_received',
@@ -322,13 +335,20 @@ exports.markSharePaid = async (req, res, next) => {
 exports.approveShare = async (req, res, next) => {
     try {
         const { id, txId, userId } = req.params
+
         const lt = await LedgerTransaction.findOne({ _id: txId, ledgerId: id })
         if (!lt) return res.status(404).json({ success: false, message: 'Not found', timestamp: new Date().toISOString() })
+
+        // Strict: Only Payer can approve
         if (lt.paidByUserId.toString() !== req.userId.toString()) {
             return res.status(403).json({ success: false, message: 'Only payer can approve', timestamp: new Date().toISOString() })
         }
+
         const index = (lt.shares || []).findIndex((s) => s.userId.toString() === String(userId))
         if (index === -1) return res.status(404).json({ success: false, message: 'Share not found', timestamp: new Date().toISOString() })
+
+        if (lt.shares[index].status === 'approved') return res.status(400).json({ success: false, message: 'Already approved', timestamp: new Date().toISOString() })
+
         lt.shares[index].status = 'approved'
         lt.shares[index].approvedAt = new Date()
         await lt.save()
@@ -379,8 +399,10 @@ exports.approveShare = async (req, res, next) => {
 exports.listTransactions = async (req, res, next) => {
     try {
         const { id } = req.params
+        // Strict Access Check
         const ledger = await Ledger.findOne({ _id: id, $or: [{ userId: req.userId }, { 'members.userId': req.userId }] })
-        if (!ledger) return res.status(404).json({ success: false, message: 'Not found', timestamp: new Date().toISOString() })
+        if (!ledger) return res.status(404).json({ success: false, message: 'Not found or permission denied', timestamp: new Date().toISOString() })
+
         const [items, users] = await Promise.all([
             LedgerTransaction.find({ ledgerId: id }).sort('-date'),
             User.find({ _id: { $in: Array.from(new Set([ledger.userId.toString(), ...ledger.members.map((m) => m.userId.toString())])) } }),
@@ -397,9 +419,12 @@ exports.removeTransaction = async (req, res, next) => {
         const { id, txId } = req.params
         const lt = await LedgerTransaction.findOne({ _id: txId, ledgerId: id })
         if (!lt) return res.status(404).json({ success: false, message: 'Not found', timestamp: new Date().toISOString() })
+
+        // Strict: Only Payer can delete
         if (lt.paidByUserId.toString() !== req.userId.toString()) {
             return res.status(403).json({ success: false, message: 'Only creator can delete', timestamp: new Date().toISOString() })
         }
+
         await LedgerTransaction.deleteOne({ _id: txId })
         // Remove the initial mirrored expense for payer and adjust budgets
         const payerExpense = await Transaction.findOneAndDelete({

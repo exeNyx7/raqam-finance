@@ -12,8 +12,18 @@ import { Switch } from "@/components/ui/switch"
 import { Separator } from "@/components/ui/separator"
 import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/hooks/use-toast"
-import { Globe, Database, Shield, Plus, Trash2, Download, Upload, AlertTriangle } from "lucide-react"
+import { Globe, Database, Shield, Plus, Trash2, Download, Upload, AlertTriangle, AlertCircle } from "lucide-react"
 import { getSettings, updateSettings as apiUpdateSettings, getCategories, addCategory as apiAddCategory, deleteCategory as apiDeleteCategory } from "@/services/api"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { useApp } from "@/contexts/app-context"
 
 const currencies = [
@@ -39,6 +49,8 @@ export default function SettingsPage() {
     privacy: { profileVisibility: "friends" as "public" | "friends" | "private", transactionVisibility: "friends" as "public" | "friends" | "private" },
   })
   const [categories, setCategories] = useState<string[]>([])
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  const [deleteConfirmation, setDeleteConfirmation] = useState("")
 
   useEffect(() => {
     let mounted = true
@@ -181,10 +193,10 @@ export default function SettingsPage() {
   }
 
   const handleDeleteAllData = () => {
-    // In a real app, this would require 2FA confirmation
+    // In a real app, this would make an API call
     toast({
-      title: "Delete all data",
-      description: "This feature requires two-factor authentication.",
+      title: "Action Restricted",
+      description: "Account deletion is currently disabled in this beta version.",
       variant: "destructive",
     })
   }
@@ -446,13 +458,49 @@ export default function SettingsPage() {
                 Permanently delete all your data including transactions, budgets, and goals
               </p>
             </div>
-            <Button variant="destructive" onClick={handleDeleteAllData}>
+            <Button variant="destructive" onClick={() => setShowDeleteDialog(true)}>
               <Trash2 className="mr-2 h-4 w-4" />
               Delete All Data
             </Button>
           </div>
         </CardContent>
       </Card>
-    </div>
+
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete your account and remove your data from our servers.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="py-4 space-y-2">
+            <Label htmlFor="confirm-delete">
+              Type <span className="font-bold text-destructive">DELETE</span> to confirm
+            </Label>
+            <Input
+              id="confirm-delete"
+              value={deleteConfirmation}
+              onChange={(e) => setDeleteConfirmation(e.target.value)}
+              placeholder="DELETE"
+            />
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setDeleteConfirmation("")}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={deleteConfirmation !== "DELETE"}
+              onClick={() => {
+                handleDeleteAllData()
+                setShowDeleteDialog(false)
+                setDeleteConfirmation("")
+              }}
+            >
+              Delete Account
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div >
   )
 }

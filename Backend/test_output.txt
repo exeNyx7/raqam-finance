@@ -1,0 +1,21 @@
+
+> backend@1.0.0 test
+> cross-env NODE_ENV=test jest --detectOpenHandles tests/integration/transactions.test.js
+
+FAIL tests/integration/transactions.test.js
+  Integration Tests: Transactions
+    ├ù Full Flow: Create Ledger -> Add Transaction -> Verify (69 ms)
+
+  ΓùÅ Integration Tests: Transactions ΓÇ║ Full Flow: Create Ledger -> Add Transaction -> Verify
+
+    ValidationError: User validation failed: passwordHash: Path `passwordHash` is required.
+
+      at model.Document.invalidate (node_modules/mongoose/lib/document.js:3358:32)
+      at node_modules/mongoose/lib/document.js:3119:17
+      at node_modules/mongoose/lib/schemaType.js:1410:9
+
+Test Suites: 1 failed, 1 total
+Tests:       1 failed, 1 total
+Snapshots:   0 total
+Time:        0.978 s, estimated 1 s
+Ran all test suites matching tests/integration/transactions.test.js.

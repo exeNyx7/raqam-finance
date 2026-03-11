@@ -19,6 +19,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { useToast } from "@/hooks/use-toast"
 import { addLedgerTransaction, createTransaction, getLedger } from "@/services/api"
+import { predictCategory } from "@/lib/smart-categorization"
 
 interface AddTransactionModalProps {
   open: boolean
@@ -38,6 +39,16 @@ export function AddTransactionModal({ open, onOpenChange, onCreated, ledgerId }:
   const [members, setMembers] = useState<Array<{ id: string; name: string }>>([])
   const [selectedParticipants, setSelectedParticipants] = useState<Record<string, boolean>>({})
   const { toast } = useToast()
+
+  // Smart categorization
+  useEffect(() => {
+    if (name && (!category || category === "Uncategorized")) {
+      const predicted = predictCategory(name, state.categories)
+      if (predicted && predicted !== "Uncategorized") {
+        setCategory(predicted)
+      }
+    }
+  }, [name, category, state.categories])
 
   // Load ledger members when used inside a ledger
   useEffect(() => {

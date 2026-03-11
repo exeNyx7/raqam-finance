@@ -21,7 +21,7 @@ const usersRoutes = require('./routes/users')
 const app = express()
 
 // Middleware
-app.use(cors({ origin: process.env.CORS_ORIGIN?.split(',') || ['http://localhost:3000'], credentials: false }))
+app.use(cors({ origin: process.env.CORS_ORIGIN?.split(',') || ['http://localhost:3000'], credentials: true }))
 app.use(express.json())
 app.use(cookieParser())
 app.use('/uploads', express.static('uploads'))
@@ -47,17 +47,37 @@ app.get('/api/health', (_req, res) => {
 })
 
 // Global error handler
+// Global error handler
 // eslint-disable-next-line no-unused-vars
 app.use((err, _req, res, _next) => {
     console.error(err)
+    // Mongoose validation error
+    if (err.name === 'ValidationError') {
+        return res.status(400).json({ success: false, message: 'Validation Error', errors: err.errors, timestamp: new Date().toISOString() })
+    }
+    // Duplicate key error
+    if (err.code === 11000) {
+        return res.status(409).json({ success: false, message: 'Duplicate entry found', timestamp: new Date().toISOString() })
+    }
+    // JWT Authentication error
+    if (err.name === 'UnauthorizedError') {
+        return res.status(401).json({ success: false, message: 'Invalid token', timestamp: new Date().toISOString() })
+    }
+
     const status = err.status || 500
-    res.status(status).json({ success: false, message: err.message || 'Internal Server Error', timestamp: new Date().toISOString() })
+    const message = status === 500 ? 'Internal Server Error' : (err.message || 'Error processing request')
+    res.status(status).json({ success: false, message, timestamp: new Date().toISOString() })
 })
+
+const initCronJobs = require('./cron')
 
 const PORT = process.env.PORT || 5000
 
 connectToDatabase()
     .then(() => {
+        // Initialize scheduled tasks
+        initCronJobs()
+
         app.listen(PORT, () => {
             console.log(`Backend server listening on http://localhost:${PORT}`)
         })
@@ -66,5 +86,3 @@ connectToDatabase()
         console.error('Failed to start server:', error)
         process.exit(1)
     })
-
-
