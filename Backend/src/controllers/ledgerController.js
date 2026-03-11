@@ -3,21 +3,8 @@ const Ledger = require('../models/Ledger')
 const Transaction = require('../models/Transaction')
 const LedgerTransaction = require('../models/LedgerTransaction')
 const Notification = require('../models/Notification')
-const Budget = require('../models/Budget')
 const User = require('../models/User')
-
-async function adjustBudgetsForCategoryAndDate({ userId, category, date, deltaAmount }) {
-    try {
-        if (!category || !date || !deltaAmount) return
-        const txDate = new Date(date)
-        const budgets = await Budget.find({ userId, category, startDate: { $lte: txDate }, endDate: { $gte: txDate } })
-        for (const b of budgets) {
-            const nextSpent = Math.max(0, (b.spent || 0) + deltaAmount)
-            const nextStatus = nextSpent >= b.amount ? 'exceeded' : 'active'
-            await Budget.findByIdAndUpdate(b._id, { $set: { spent: nextSpent, status: nextStatus } })
-        }
-    } catch (_) { }
-}
+const { adjustBudgetsForCategoryAndDate } = require('../utils/budgetUtils')
 
 exports.list = async (req, res, next) => {
     try {
@@ -240,8 +227,8 @@ exports.addTransaction = async (req, res, next) => {
             sharesInput = others.map((uid) => ({ userId: uid }))
         }
 
-        const shareCount = sharesInput.length
-        const equalShare = shareCount > 0 ? Math.abs(Number(totalAmount)) / shareCount : 0
+        const totalParticipants = sharesInput.length + 1 // debtors + payer
+        const equalShare = totalParticipants > 0 ? Math.abs(Number(totalAmount)) / totalParticipants : 0
         const normalizedShares = sharesInput.map((p) => ({
             userId: String(p.userId),
             amount: p.amount != null ? Math.abs(Number(p.amount)) : equalShare,

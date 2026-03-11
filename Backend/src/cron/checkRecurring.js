@@ -2,6 +2,7 @@ const Recurring = require('../models/Recurring')
 const Transaction = require('../models/Transaction')
 const Notification = require('../models/Notification')
 const mongoose = require('mongoose')
+const { adjustBudgetsForCategoryAndDate } = require('../utils/budgetUtils')
 
 const checkRecurring = async () => {
     console.log('Running Recurring Transaction Check Job...')
@@ -61,6 +62,13 @@ const checkRecurring = async () => {
                 }], { session })
 
                 await session.commitTransaction()
+                // Update matching budgets for the recurring expense
+                await adjustBudgetsForCategoryAndDate({
+                    userId: item.userId,
+                    category: item.category,
+                    date: new Date(),
+                    deltaAmount: Math.abs(Number(item.amount)),
+                })
                 console.log(`Processed recurring item ${item._id}`)
 
             } catch (err) {

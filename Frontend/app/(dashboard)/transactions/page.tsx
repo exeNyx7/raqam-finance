@@ -25,7 +25,7 @@ import { getTransactions, getCategories } from "@/lib/api"
 import { AddTransactionModal } from "@/components/add-transaction-modal"
 import { BankExportUpload } from "@/components/bank-export-upload"
 import { useApp } from "@/contexts/app-context"
-import { Transaction } from "@/services/types"
+import { Transaction } from "@/lib/api/types"
 
 export default function TransactionsPage() {
     const { state } = useApp()

@@ -1,41 +1,23 @@
-# Raqam Finance Refactoring & Stabilization Plan
+# Raqam Finance Refactoring: Phases 6 & 7
 
-**Goal:** Secure authentication, consolidate redundant API clients, standardize data flows, and fix schema relations before scaling new features.
+**Goal:** Remove legacy code, eliminate split-brain frontend state (mock vs. real data), and patch critical math/logic bugs in the backend.
 
-## Phase 1: Authentication Security (HttpOnly Cookies)
-**Objective:** Eliminate XSS vulnerabilities by removing refresh tokens from `localStorage`.
+## Phase 6: Frontend State & Architecture Cleanup
+**Objective:** Consolidate type definitions and remove the hardcoded mock data that is desynchronizing the frontend.
 
-1. **Backend CORS Update:** In `Backend/src/server.js`, update the CORS middleware to set `credentials: true`.
-2. **Backend Auth Controller:** In `Backend/src/controllers/authController.js`, update `login`, `register`, and `refresh` methods to attach the `refreshToken` as an `HttpOnly`, `Secure`, `SameSite=Strict` cookie. Remove `refreshToken` from the JSON response payloads.
-3. **Frontend API Client:** In `Frontend/lib/api/client.ts`, add `credentials: "include"` to all `fetch` requests inside the `makeRequest` method. Remove all logic related to `localStorage.setItem('refreshToken', ...)`.
-4. **Frontend Auth Context:** In `Frontend/contexts/auth-context.tsx`, remove manual `localStorage` token management. Rely on the API client's silent refresh mechanism and the `/auth/me` endpoint to verify sessions on load.
+1. **Consolidate Types:** - Move any missing type interfaces from `Frontend/services/types.ts` into `Frontend/lib/api/types.ts`.
+   - Delete `Frontend/services/types.ts` (and the entire `Frontend/services` folder if it is now empty) to prevent accidental legacy imports.
+   - Update any components still importing from `@/services/types` to import from `@/lib/api/types`.
+2. **Purge Mock State:** In `Frontend/contexts/app-context.tsx`, the `initialState` object contains hardcoded mock data (e.g., "Alice Johnson", "Monthly Food Budget", etc.). 
+   - Empty these arrays. `people`, `budgets`, `goals`, and `bills` must initialize as empty arrays `[]` so the app correctly relies on the backend database via `apiClient` instead of dummy `localStorage` data.
 
-## Phase 2: API Client Consolidation
-**Objective:** Remove duplicate fetching logic to prevent race conditions and out-of-sync states.
+## Phase 7: Backend Logic & Performance Fixes
+**Objective:** Fix the ledger math, update budget progress on recurring payments, and prevent frontend DDoS polling.
 
-1. **Delete Procedural Client:** Completely delete `Frontend/services/api.js`.
-2. **Migrate Endpoints:** Ensure all API calls previously defined in `api.js` (e.g., `getDashboardStats`, `getLedgers`, `createTransaction`) are properly mapped using the singleton `apiClient` from `Frontend/lib/api/client.ts`.
-3. **Update Imports:** Search the entire `/Frontend` directory for imports from `@/services/api` and replace them with calls using the unified `apiClient`.
-4. **Remove Cache Hacks:** Remove query string cache-busters like `_t=Date.now()` from fetching functions. Configure Next.js caching appropriately via fetch options (`cache: 'no-store'`).
-
-## Phase 3: Backend Response Standardization
-**Objective:** Ensure every API endpoint returns a predictable `{ success: boolean, message?: string, data?: any }` format without double-nesting.
-
-1. **Fix Refresh Endpoint:** Update `authController.refresh` to return `{ success: true, data: { accessToken } }` instead of raw tokens.
-2. **Fix List Endpoints:** Audit all controller files (e.g., `ledgerController.js`, `billController.js`, `personController.js`) to ensure list responses do not wrap data twice (e.g., returning `{ data: { data: [...] } }`).
-3. **Global Error Handler:** Sanitize the global error handler in `Backend/src/server.js` so it does not expose internal stack traces or raw database errors in the `message` field.
-
-## Phase 4: Database Schema & Integrity Fixes
-**Objective:** Fix broken relationships and missing data mappings.
-
-1. **Fix Foreign Keys:** In `Backend/src/models/Transaction.js` and `Backend/src/models/LedgerTransaction.js`, change `ledgerId: { type: String }` to `ledgerId: { type: mongoose.Schema.Types.ObjectId, ref: 'Ledger' }`.
-2. **Fix UsersMap Generation:** Ensure controllers fetching `LedgerTransaction` records always aggregate and pass the `usersMap` to the `.toClient(usersMap)` method so participant names resolve correctly instead of returning `null`.
-
-## Phase 5: Cashflow & System Integration (From TODO Sprint)
-**Objective:** Ensure ledger and bill payments sync with the main dashboard.
-
-1. **MongoDB Transactions:** When marking a bill or ledger share as "Paid", implement a Mongoose Transaction (Session) in the controller.
-2. **Cascading Updates:** The transaction must:
-   - Update the specific `Bill` or `LedgerTransaction` status.
-   - Create a corresponding standard `Transaction` entry reflecting the payment.
-   - Adjust the respective `User`'s total balance/cashflow.
+1. **Extract Budget Utility:** The function `adjustBudgetsForCategoryAndDate` is currently trapped inside `Backend/src/controllers/ledgerController.js`. 
+   - Move it into a new utility file: `Backend/src/utils/budgetUtils.js`.
+   - Import and use this new utility in `ledgerController.js`.
+2. **Fix Recurring Budget Gap:** In `Backend/src/cron/checkRecurring.js`, import the new `budgetUtils.js`. After the cron job successfully creates a recurring `Transaction`, it must call `adjustBudgetsForCategoryAndDate` so automated bills correctly deduct from the user's active budget limits.
+3. **Fix Ledger Split Math (TODO #6):** In `Backend/src/controllers/ledgerController.js` -> `addTransaction()`, the `equalShare` is currently calculated by dividing the total amount by the `shareCount` (which excludes the payer). 
+   - Update the math to divide by the **total number of involved participants** (debtors + payer) so the split is actually equal among everyone who shared the expense.
+4. **Reduce Polling Load:** In `Frontend/components/notifications-popover.tsx`, change the `setInterval` from `30000` (30 seconds) to `180000` (3 minutes) to prevent aggressive background polling from overloading the Express server.

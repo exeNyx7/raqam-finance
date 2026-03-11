@@ -13,7 +13,7 @@ import { Plus, Filter, Download, Settings } from "lucide-react"
 import { AddTransactionModal } from "@/components/add-transaction-modal"
 import { getLedger, getTransactions, getLedgerTransactions, approveLedgerShare, markLedgerSharePaid, deleteLedgerTransaction } from "@/services/api"
 import { useAuth } from "@/contexts/auth-context"
-import { Ledger } from "@/services/types"
+import { Ledger } from "@/lib/api/types"
 import { downloadCSV } from "@/lib/utils"
 
 export default function LedgerDetailPage() {

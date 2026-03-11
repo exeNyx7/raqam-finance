@@ -206,6 +206,41 @@ export interface Notification {
   createdAt: string
 }
 
+// Recurring Types
+export interface Recurring {
+  id: string
+  description: string
+  amount: number
+  category: string
+  frequency: "daily" | "weekly" | "monthly" | "quarterly" | "yearly"
+  startDate: string
+  nextDue: string
+  status: "active" | "paused" | "cancelled"
+  lastProcessed?: string
+  createdAt: string
+  updatedAt: string
+}
+
+// Ledger Transaction Types
+export interface LedgerTransaction {
+  id: string
+  ledgerId: string
+  payerId: string
+  description: string
+  totalAmount: number
+  date: string
+  shares: {
+    userId: string
+    amount: number
+    status: "pending" | "paid" | "approved"
+    paidAt?: string
+    approvedAt?: string
+  }[]
+  category: string
+  createdAt: string
+  updatedAt: string
+}
+
 // Query Parameters
 export interface QueryParams {
   page?: number
