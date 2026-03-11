@@ -24,7 +24,7 @@ import {
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Upload, ArrowRight, Loader2 } from "lucide-react"
-import { createTransaction, getCategories } from "@/services/api"
+import { createTransaction, getCategories } from "@/lib/api"
 import { useToast } from "@/hooks/use-toast"
 import { predictCategory } from "@/lib/smart-categorization"
 

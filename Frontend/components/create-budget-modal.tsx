@@ -24,7 +24,7 @@ interface CreateBudgetModalProps {
   onCreated?: () => void
 }
 
-import { createBudget } from "@/services/api"
+import { createBudget } from "@/lib/api"
 
 export function CreateBudgetModal({ open, onOpenChange, onCreated }: CreateBudgetModalProps) {
   const { state } = useApp()

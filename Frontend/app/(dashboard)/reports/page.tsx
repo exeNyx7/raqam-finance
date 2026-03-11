@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { BarChart3, PieChart, TrendingUp, TrendingDown, Calendar, Download } from "lucide-react"
-import { getDashboardStats, getExpenseBreakdown, getMonthlyTrends, getTransactions, getBudgets, getGoals } from "@/services/api"
+import { getDashboardStats, getExpenseBreakdown, getMonthlyTrends, getTransactions, getBudgets, getGoals } from "@/lib/api"
 import { downloadCSV } from "@/lib/utils"
 
 export default function ReportsPage() {

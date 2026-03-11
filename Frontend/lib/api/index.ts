@@ -3,6 +3,9 @@ export * from "./client"
 export * from "./types"
 export * from "./hooks/useApi"
 
+// Compatibility named-function exports — replaces @/services/api
+export * from "./compat"
+
 // Service exports
 export { authService } from "./services/auth"
 export { transactionService } from "./services/transactions"

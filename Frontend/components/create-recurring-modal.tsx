@@ -22,7 +22,7 @@ interface CreateRecurringModalProps {
   onOpenChange: (open: boolean) => void
 }
 
-import { createRecurring, getRecurringMeta, getLedgers } from "@/services/api"
+import { createRecurring, getRecurringMeta, getLedgers } from "@/lib/api"
 
 export function CreateRecurringModal({ open, onOpenChange }: CreateRecurringModalProps) {
   const [description, setDescription] = useState("")

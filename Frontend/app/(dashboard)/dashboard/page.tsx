@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Plus, TrendingUp, TrendingDown, DollarSign, Users } from "lucide-react"
 import { AddTransactionModal } from "@/components/add-transaction-modal"
-import { getDashboardStats, getTransactions } from "@/services/api"
+import { getDashboardStats, getTransactions } from "@/lib/api"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { ErrorBoundary } from "@/components/error-boundary"
 

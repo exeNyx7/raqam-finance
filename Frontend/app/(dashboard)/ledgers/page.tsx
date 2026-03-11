@@ -13,7 +13,7 @@ import { CreateLedgerModal } from "@/components/create-ledger-modal"
 import { EditLedgerModal } from "@/components/edit-ledger-modal"
 import { LedgerMemberManagementModal } from "@/components/ledger-member-management-modal"
 import { AddLedgerTransactionModal } from "@/components/add-ledger-transaction-modal"
-import { getLedgers, deleteLedger, leaveLedger } from "@/services/api"
+import { getLedgers, deleteLedger, leaveLedger } from "@/lib/api"
 import { useToast } from "@/hooks/use-toast"
 import {
   AlertDialog,

@@ -19,7 +19,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { useToast } from "@/hooks/use-toast"
 import { X } from "lucide-react"
-import { createLedger, getPeople, searchUsers } from "@/services/api"
+import { createLedger, getPeople, searchUsers } from "@/lib/api"
 import { useAuth } from "@/contexts/auth-context"
 
 interface CreateLedgerModalProps {

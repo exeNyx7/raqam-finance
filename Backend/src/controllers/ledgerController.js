@@ -1,3 +1,4 @@
+const mongoose = require('mongoose')
 const Ledger = require('../models/Ledger')
 const Transaction = require('../models/Transaction')
 const LedgerTransaction = require('../models/LedgerTransaction')
@@ -32,14 +33,14 @@ exports.list = async (req, res, next) => {
             Ledger.countDocuments(filter),
         ])
 
-        // Build stats per ledger for current user
-        const ledgerIds = items.map((l) => l._id.toString())
+        // Build stats per ledger for current user — ObjectIds required in aggregation pipelines
+        const ledgerObjIds = items.map((l) => l._id)
         const txByLedger = await Transaction.aggregate([
-            { $match: { userId: req.userId, ledgerId: { $in: ledgerIds } } },
+            { $match: { userId: new mongoose.Types.ObjectId(req.userId), ledgerId: { $in: ledgerObjIds } } },
             { $group: { _id: '$ledgerId', count: { $sum: 1 }, lastActivity: { $max: '$date' }, expenses: { $sum: { $cond: [{ $eq: ['$type', 'expense'] }, '$amount', 0] } }, income: { $sum: { $cond: [{ $eq: ['$type', 'income'] }, '$amount', 0] } } } },
         ])
         const statsMap = Object.fromEntries(
-            txByLedger.map((t) => [t._id, { transactionCount: t.count, balance: (t.income || 0) - (t.expenses || 0), lastActivity: t.lastActivity }]),
+            txByLedger.map((t) => [t._id.toString(), { transactionCount: t.count, balance: (t.income || 0) - (t.expenses || 0), lastActivity: t.lastActivity }]),
         )
 
         // Build members details
@@ -309,21 +310,44 @@ exports.markSharePaid = async (req, res, next) => {
 
         const index = (lt.shares || []).findIndex((s) => s.userId.toString() === req.userId.toString())
         if (index === -1) return res.status(403).json({ success: false, message: 'Not a participant in this transaction', timestamp: new Date().toISOString() })
+        if (lt.shares[index].status !== 'pending') return res.status(400).json({ success: false, message: 'Share already marked', timestamp: new Date().toISOString() })
 
-        lt.shares[index].status = 'paid'
-        lt.shares[index].paidAt = new Date()
-        await lt.save()
+        const shareAmount = Math.abs(Number(lt.shares[index].amount))
 
-        // Notify payer that share is paid
+        // Atomically: mark share paid + create participant expense transaction
+        const session = await mongoose.startSession()
+        try {
+            await session.withTransaction(async () => {
+                lt.shares[index].status = 'paid'
+                lt.shares[index].paidAt = new Date()
+                await lt.save({ session })
+
+                await Transaction.create([{
+                    description: `Ledger payment: ${lt.description}`,
+                    amount: shareAmount,
+                    category: lt.category,
+                    date: new Date(),
+                    ledgerId: id,
+                    type: 'expense',
+                    metadata: { ledgerTransactionId: lt._id.toString(), toUserId: lt.paidByUserId.toString() },
+                    userId: req.userId,
+                }], { session })
+            })
+        } finally {
+            session.endSession()
+        }
+        await adjustBudgetsForCategoryAndDate({ userId: req.userId, category: lt.category, date: new Date(), deltaAmount: shareAmount })
+
+        // Notify payer (non-critical — outside transaction)
         await Notification.create({
             userId: lt.paidByUserId,
             type: 'payment_received',
             title: 'Payment marked as sent',
             message: 'A participant marked their share as paid. Please review.',
-            amount: lt.shares[index].amount,
+            amount: shareAmount,
             ledger: id,
             metadata: { ledgerTransactionId: lt._id.toString(), participantUserId: req.userId.toString() },
-        })
+        }).catch(() => {})
 
         const users = await User.find({ _id: { $in: [lt.paidByUserId, ...lt.shares.map((s) => s.userId)] } })
         const usersMap = Object.fromEntries(users.map((u) => [u._id.toString(), u]))
@@ -346,39 +370,49 @@ exports.approveShare = async (req, res, next) => {
 
         const index = (lt.shares || []).findIndex((s) => s.userId.toString() === String(userId))
         if (index === -1) return res.status(404).json({ success: false, message: 'Share not found', timestamp: new Date().toISOString() })
-
         if (lt.shares[index].status === 'approved') return res.status(400).json({ success: false, message: 'Already approved', timestamp: new Date().toISOString() })
 
-        lt.shares[index].status = 'approved'
-        lt.shares[index].approvedAt = new Date()
-        await lt.save()
-
         const amount = Math.abs(Number(lt.shares[index].amount))
-        // Mirror income to payer
-        await Transaction.create({
-            description: `Reimbursement: ${lt.description}`,
-            amount,
-            category: lt.category,
-            date: new Date(),
-            ledgerId: id,
-            type: 'income',
-            metadata: { ledgerTransactionId: lt._id.toString(), fromUserId: String(userId) },
-            userId: lt.paidByUserId,
-        })
-        // Mirror expense to participant
-        const participantExpense = await Transaction.create({
-            description: `Ledger payment: ${lt.description}`,
-            amount,
-            category: lt.category,
-            date: new Date(),
-            ledgerId: id,
-            type: 'expense',
-            metadata: { ledgerTransactionId: lt._id.toString(), toUserId: lt.paidByUserId.toString() },
-            userId: String(userId),
-        })
+
+        // Atomically: update share status + mirror income/expense transactions
+        const session = await mongoose.startSession()
+        try {
+            await session.withTransaction(async () => {
+                lt.shares[index].status = 'approved'
+                lt.shares[index].approvedAt = new Date()
+                await lt.save({ session })
+
+                await Transaction.create([
+                    // Income for payer (reimbursement received)
+                    {
+                        description: `Reimbursement: ${lt.description}`,
+                        amount,
+                        category: lt.category,
+                        date: new Date(),
+                        ledgerId: id,
+                        type: 'income',
+                        metadata: { ledgerTransactionId: lt._id.toString(), fromUserId: String(userId) },
+                        userId: lt.paidByUserId,
+                    },
+                    // Expense for participant (payment confirmed)
+                    {
+                        description: `Ledger payment: ${lt.description}`,
+                        amount,
+                        category: lt.category,
+                        date: new Date(),
+                        ledgerId: id,
+                        type: 'expense',
+                        metadata: { ledgerTransactionId: lt._id.toString(), toUserId: lt.paidByUserId.toString() },
+                        userId: String(userId),
+                    },
+                ], { session })
+            })
+        } finally {
+            session.endSession()
+        }
         await adjustBudgetsForCategoryAndDate({ userId: String(userId), category: lt.category, date: new Date(), deltaAmount: amount })
 
-        // Notify participant of approval
+        // Notify participant (non-critical — outside transaction)
         await Notification.create({
             userId: String(userId),
             type: 'payment_approved',
@@ -387,7 +421,7 @@ exports.approveShare = async (req, res, next) => {
             amount,
             ledger: id,
             metadata: { ledgerTransactionId: lt._id.toString() },
-        })
+        }).catch(() => {})
 
         const users = await User.find({ _id: { $in: [lt.paidByUserId, ...lt.shares.map((s) => s.userId)] } })
         const usersMap = Object.fromEntries(users.map((u) => [u._id.toString(), u]))

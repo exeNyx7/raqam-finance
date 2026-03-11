@@ -18,7 +18,7 @@ import { Label } from "@/components/ui/label"
 import { useToast } from "@/hooks/use-toast"
 import { Trash2 } from "lucide-react"
 
-import { updateBudget, deleteBudget } from "@/services/api"
+import { updateBudget, deleteBudget } from "@/lib/api"
 
 interface EditBudgetModalProps {
     open: boolean

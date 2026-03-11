@@ -50,10 +50,17 @@ app.get('/api/health', (_req, res) => {
 // Global error handler
 // eslint-disable-next-line no-unused-vars
 app.use((err, _req, res, _next) => {
-    console.error(err)
-    // Mongoose validation error
+    console.error(err.stack || err.message || err)
+    // Mongoose validation error — sanitize to field: message pairs only
     if (err.name === 'ValidationError') {
-        return res.status(400).json({ success: false, message: 'Validation Error', errors: err.errors, timestamp: new Date().toISOString() })
+        const errors = Object.fromEntries(
+            Object.entries(err.errors || {}).map(([k, v]) => [k, v.message])
+        )
+        return res.status(400).json({ success: false, message: 'Validation Error', errors, timestamp: new Date().toISOString() })
+    }
+    // Invalid ObjectId / cast error
+    if (err.name === 'CastError') {
+        return res.status(400).json({ success: false, message: 'Invalid ID format', timestamp: new Date().toISOString() })
     }
     // Duplicate key error
     if (err.code === 11000) {

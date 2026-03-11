@@ -3,7 +3,7 @@
 import type React from "react"
 
 import { useState, useEffect } from "react"
-import { addLedgerTransaction } from "@/services/api"
+import { addLedgerTransaction } from "@/lib/api"
 import {
   Dialog,
   DialogContent,

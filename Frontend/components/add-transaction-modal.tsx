@@ -18,7 +18,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { useToast } from "@/hooks/use-toast"
-import { addLedgerTransaction, createTransaction, getLedger } from "@/services/api"
+import { addLedgerTransaction, createTransaction, getLedger } from "@/lib/api"
 import { predictCategory } from "@/lib/smart-categorization"
 
 interface AddTransactionModalProps {

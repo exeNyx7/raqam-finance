@@ -9,7 +9,7 @@ import {
     PopoverTrigger,
 } from "@/components/ui/popover"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { getNotifications, markNotificationRead, markAllNotificationsRead } from "@/services/api"
+import { getNotifications, markNotificationRead, markAllNotificationsRead } from "@/lib/api"
 import { useRouter } from "next/navigation"
 
 export function NotificationsPopover() {

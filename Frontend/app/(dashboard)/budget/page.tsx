@@ -11,7 +11,7 @@ import { Plus, TrendingUp, TrendingDown, AlertTriangle, Target, Calendar } from 
 import { CreateBudgetModal } from "@/components/create-budget-modal"
 import { EditBudgetModal } from "@/components/edit-budget-modal"
 
-import { getBudgets } from "@/services/api"
+import { getBudgets } from "@/lib/api"
 
 export default function BudgetPage() {
   const { state } = useApp()

@@ -4,7 +4,7 @@ import type React from "react"
 
 import { useState } from "react"
 import { useApp } from "@/contexts/app-context"
-import { addGoalContribution, withdrawFromGoal } from "@/services/api"
+import { addGoalContribution, withdrawFromGoal } from "@/lib/api"
 import {
   Dialog,
   DialogContent,

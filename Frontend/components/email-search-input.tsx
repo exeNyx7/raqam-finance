@@ -9,7 +9,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Card } from "@/components/ui/card"
 import { Loader2, Search, User, Check } from "lucide-react"
-import { searchUsers } from "@/services/api"
+import { searchUsers } from "@/lib/api"
 
 interface User {
   id: string

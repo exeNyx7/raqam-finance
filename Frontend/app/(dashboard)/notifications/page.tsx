@@ -11,7 +11,7 @@ import {
   markNotificationRead,
   markAllNotificationsRead,
   deleteNotification as deleteNotificationApi,
-} from "@/services/api"
+} from "@/lib/api"
 
 export default function NotificationsPage() {
   const [notificationList, setNotificationList] = useState<any[]>([])

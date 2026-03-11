@@ -9,7 +9,7 @@ import { Progress } from "@/components/ui/progress"
 import { Plus, Trophy, Target, Calendar, TrendingUp, Flag } from "lucide-react"
 import { CreateGoalModal } from "@/components/create-goal-modal"
 import { AddGoalContributionModal } from "@/components/add-goal-contribution-modal"
-import { deleteGoal, getGoals } from "@/services/api"
+import { deleteGoal, getGoals } from "@/lib/api"
 
 export default function GoalsPage() {
   const { state } = useApp()

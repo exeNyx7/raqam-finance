@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
 import { Plus, Filter, Search } from "lucide-react"
-import { getTransactions, getCategories } from "@/services/api"
+import { getTransactions, getCategories } from "@/lib/api"
 import { AddTransactionModal } from "@/components/add-transaction-modal"
 import { BankExportUpload } from "@/components/bank-export-upload"
 import { useApp } from "@/contexts/app-context"

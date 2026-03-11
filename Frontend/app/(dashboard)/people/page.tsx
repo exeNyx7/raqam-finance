@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Plus, Search, MoreHorizontal, Users, UserPlus, Edit, Trash2, Bell, Mail, ChevronLeft, ChevronRight, Loader2, Receipt } from "lucide-react"
 import { AddPersonModal } from "@/components/add-person-modal"
 import { EditPersonModal } from "@/components/edit-person-modal"
-import { deletePerson as apiDeletePerson, getAllPeople } from "@/services/api"
+import { deletePerson as apiDeletePerson, getAllPeople } from "@/lib/api"
 import { useToast } from "@/hooks/use-toast"
 
 type Person = {
@@ -180,7 +180,7 @@ export default function PeoplePage() {
     
     try {
       // Call the actual API endpoint
-      const { getPersonTransactions } = await import('@/services/api')
+      const { getPersonTransactions } = await import('@/lib/api')
       const transactions = await getPersonTransactions(person.id)
       
       setPersonTransactions({

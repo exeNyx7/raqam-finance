@@ -1,3 +1,4 @@
+const mongoose = require('mongoose')
 const Bill = require('../models/Bill')
 const Transaction = require('../models/Transaction')
 
@@ -146,118 +147,68 @@ exports.updatePaymentStatus = async (req, res, next) => {
         const { id: billId } = req.params
         const { participantId, status } = req.body
 
-        console.log('updatePaymentStatus called with:', {
-            billId,
-            participantId,
-            status,
-            userId: req.userId,
-            params: req.params,
-            body: req.body
-        })
-
         if (!participantId || !status || !['paid', 'pending'].includes(status)) {
-            return res.status(400).json({ 
-                success: false, 
-                message: 'Missing required fields or invalid status', 
-                timestamp: new Date().toISOString() 
+            return res.status(400).json({
+                success: false,
+                message: 'Missing required fields or invalid status',
+                timestamp: new Date().toISOString()
             })
         }
 
         const isPaid = status === 'paid'
 
-        console.log('updatePaymentStatus - Searching for bill:', { billId, userId: req.userId })
-        
-        // Find the bill and verify ownership
         const bill = await Bill.findOne({ _id: billId, userId: req.userId })
-        
-        console.log('updatePaymentStatus - Bill found:', bill ? 'YES' : 'NO')
-        if (bill) {
-            console.log('updatePaymentStatus - Bill details:', { 
-                _id: bill._id, 
-                description: bill.description,
-                userId: bill.userId 
-            })
-        }
-        
         if (!bill) {
-            return res.status(404).json({ 
-                success: false, 
-                message: 'Bill not found', 
-                timestamp: new Date().toISOString() 
-            })
+            return res.status(404).json({ success: false, message: 'Bill not found', timestamp: new Date().toISOString() })
         }
 
-        // Verify participant is part of the bill
         if (!bill.participants.includes(participantId)) {
-            return res.status(400).json({ 
-                success: false, 
-                message: 'Participant not found in this bill', 
-                timestamp: new Date().toISOString() 
+            return res.status(400).json({ success: false, message: 'Participant not found in this bill', timestamp: new Date().toISOString() })
+        }
+
+        const splitAmount = bill.splits?.get(participantId) || 0
+
+        // Atomically: update payment status + create/delete settlement transaction
+        const session = await mongoose.startSession()
+        try {
+            await session.withTransaction(async () => {
+                if (!bill.paymentStatus) bill.paymentStatus = new Map()
+                bill.paymentStatus.set(participantId, isPaid)
+                bill.markModified('paymentStatus')
+
+                if (isPaid && splitAmount > 0) {
+                    await Transaction.create([{
+                        userId: req.userId,
+                        description: `Payment received from bill: ${bill.description}`,
+                        amount: splitAmount,
+                        type: 'income',
+                        category: 'Bill Payment',
+                        date: new Date(),
+                        status: 'completed',
+                        metadata: { billId: bill._id, participantId, paymentType: 'bill_settlement' },
+                    }], { session })
+                } else if (!isPaid) {
+                    await Transaction.deleteMany({
+                        userId: req.userId,
+                        'metadata.billId': bill._id,
+                        'metadata.participantId': participantId,
+                        'metadata.paymentType': 'bill_settlement',
+                    }, { session })
+                }
+
+                const allPaid = bill.participants.every((pId) =>
+                    pId === bill.paidBy || bill.paymentStatus?.get(pId) === true
+                )
+                if (allPaid && bill.status !== 'settled') bill.status = 'settled'
+                else if (!allPaid && bill.status === 'settled') bill.status = 'finalized'
+
+                await bill.save({ session })
             })
+        } finally {
+            session.endSession()
         }
 
-        // Initialize paymentStatus if it doesn't exist
-        if (!bill.paymentStatus) {
-            bill.paymentStatus = new Map()
-        }
-
-        // Update payment status
-        bill.paymentStatus.set(participantId, isPaid)
-        bill.markModified('paymentStatus')
-        
-        await bill.save()
-
-        // If marking as paid, create a transaction record for cashflow tracking
-        if (isPaid) {
-            const splitAmount = bill.splits?.get(participantId) || 0
-            
-            if (splitAmount > 0) {
-                // Create an income transaction representing the payment received
-                const transaction = new Transaction({
-                    userId: req.userId,
-                    description: `Payment received from bill: ${bill.description}`,
-                    amount: splitAmount,
-                    type: 'income',
-                    category: 'Bill Payment',
-                    date: new Date(),
-                    status: 'completed',
-                    metadata: {
-                        billId: bill._id,
-                        participantId: participantId,
-                        paymentType: 'bill_settlement'
-                    }
-                })
-                
-                await transaction.save()
-            }
-        } else {
-            // If marking as unpaid, remove any existing settlement transaction
-            await Transaction.deleteMany({
-                userId: req.userId,
-                'metadata.billId': bill._id,
-                'metadata.participantId': participantId,
-                'metadata.paymentType': 'bill_settlement'
-            })
-        }
-
-        // Check if all participants have paid and update bill status
-        const allPaid = bill.participants.every(pId => 
-            pId === bill.paidBy || bill.paymentStatus?.get(pId) === true
-        )
-        
-        if (allPaid && bill.status !== 'settled') {
-            bill.status = 'settled'
-            await bill.save()
-        } else if (!allPaid && bill.status === 'settled') {
-            bill.status = 'finalized'
-            await bill.save()
-        }
-
-        res.json({
-            success: true,
-            timestamp: new Date().toISOString(),
-            data: bill.toClient()
-        })
+        res.json({ success: true, timestamp: new Date().toISOString(), data: bill.toClient() })
     } catch (err) {
         next(err)
     }

@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Plus, MoreHorizontal, Calendar, DollarSign, Repeat, Pause, Play, Trash2 } from "lucide-react"
 import { CreateRecurringModal } from "@/components/create-recurring-modal"
-import { getRecurrings, getRecurringStats, updateRecurring as apiUpdateRecurring, deleteRecurring as apiDeleteRecurring } from "@/services/api"
+import { getRecurrings, getRecurringStats, updateRecurring as apiUpdateRecurring, deleteRecurring as apiDeleteRecurring } from "@/lib/api"
 
 type Recurring = {
   id: string

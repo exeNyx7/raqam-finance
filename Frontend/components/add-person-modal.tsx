@@ -3,7 +3,7 @@
 import type React from "react"
 
 import { useState } from "react"
-import { createPerson } from "@/services/api"
+import { createPerson } from "@/lib/api"
 import {
   Dialog,
   DialogContent,

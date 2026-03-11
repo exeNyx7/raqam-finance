@@ -16,7 +16,7 @@ import { Separator } from "@/components/ui/separator"
 import { useToast } from "@/hooks/use-toast"
 import { Plus, Trash2, Calculator, Users, Receipt } from "lucide-react"
 import type { BillItem } from "@/contexts/app-context"
-import { createBill as apiCreateBill, getAllPeople } from "@/services/api"
+import { createBill as apiCreateBill, getAllPeople } from "@/lib/api"
 
 interface BillItemWithId extends BillItem {
   tempId: string

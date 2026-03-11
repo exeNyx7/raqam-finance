@@ -12,7 +12,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog"
 import { History, Search, Filter, MoreHorizontal, Eye, Download, Trash2, ChevronLeft, ChevronRight, X, Calendar, DollarSign, Users, Receipt } from "lucide-react"
-import { getBills as apiGetBills, deleteBill as apiDeleteBill, getAllPeople } from "@/services/api"
+import { getBills as apiGetBills, deleteBill as apiDeleteBill, getAllPeople } from "@/lib/api"
 import { billService } from "@/lib/api/services/bills"
 import { useApp } from "@/contexts/app-context"
 import { useAuth } from "@/contexts/auth-context"

@@ -17,7 +17,7 @@ const ledgerTransactionSchema = new mongoose.Schema(
         totalAmount: { type: Number, required: true },
         category: { type: String, required: true, trim: true },
         date: { type: Date, required: true },
-        ledgerId: { type: String, required: true },
+        ledgerId: { type: mongoose.Schema.Types.ObjectId, ref: 'Ledger', required: true },
         paidByUserId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', index: true, required: true },
         shares: { type: [ledgerShareSchema], default: [] },
         metadata: { type: Object },
@@ -33,7 +33,7 @@ ledgerTransactionSchema.methods.toClient = function toClient(usersMap) {
         totalAmount: this.totalAmount,
         category: this.category,
         date: this.date.toISOString(),
-        ledgerId: this.ledgerId,
+        ledgerId: this.ledgerId ? this.ledgerId.toString() : null,
         paidBy: {
             id: paidById,
             name: usersMap?.[paidById]?.name || null,

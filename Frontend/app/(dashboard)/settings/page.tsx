@@ -13,7 +13,7 @@ import { Separator } from "@/components/ui/separator"
 import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/hooks/use-toast"
 import { Globe, Database, Shield, Plus, Trash2, Download, Upload, AlertTriangle, AlertCircle } from "lucide-react"
-import { getSettings, updateSettings as apiUpdateSettings, getCategories, addCategory as apiAddCategory, deleteCategory as apiDeleteCategory } from "@/services/api"
+import { getSettings, updateSettings as apiUpdateSettings, getCategories, addCategory as apiAddCategory, deleteCategory as apiDeleteCategory } from "@/lib/api"
 import {
   AlertDialog,
   AlertDialogAction,

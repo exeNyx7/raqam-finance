@@ -13,7 +13,7 @@ import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { useToast } from "@/hooks/use-toast"
 import { Download, Shield, Eye, EyeOff, Camera, LogOut, Trash2 } from "lucide-react"
-import { changePassword, getProfile, updateProfile, getLedgers, leaveLedger } from "@/services/api"
+import { changePassword, getProfile, updateProfile, getLedgers, leaveLedger } from "@/lib/api"
 export default function ProfilePage() {
   const { user: authUser, signOut } = useAuth()
   const [isEditing, setIsEditing] = useState(false)
