@@ -398,6 +398,8 @@ exports.approveShare = async (req, res, next) => {
             session.endSession()
         }
         await adjustBudgetsForCategoryAndDate({ userId: String(userId), category: lt.category, date: new Date(), deltaAmount: amount })
+        // Recover payer's budget by the reimbursed amount
+        await adjustBudgetsForCategoryAndDate({ userId: lt.paidByUserId, category: lt.category, date: new Date(), deltaAmount: -amount })
 
         // Notify participant (non-critical — outside transaction)
         await Notification.create({

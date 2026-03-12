@@ -146,10 +146,6 @@ export default function DashboardPage() {
         </Button>
       </div>
 
-      import {ErrorBoundary} from "@/components/error-boundary"
-
-      // ... existing code ...
-
       {/* Stats Cards */}
       <ErrorBoundary fallback={<div className="p-4 border rounded-lg bg-muted/50 text-center">Failed to load stats</div>}>
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">

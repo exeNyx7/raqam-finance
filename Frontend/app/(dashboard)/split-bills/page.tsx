@@ -15,7 +15,7 @@ import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { useToast } from "@/hooks/use-toast"
 import { Plus, Trash2, Calculator, Users, Receipt } from "lucide-react"
-import type { BillItem } from "@/contexts/app-context"
+import type { BillItem } from "@/lib/api/types"
 import { createBill as apiCreateBill, getAllPeople } from "@/lib/api"
 
 interface BillItemWithId extends BillItem {
@@ -23,7 +23,7 @@ interface BillItemWithId extends BillItem {
 }
 
 export default function SplitBillsPage() {
-  const { state, addBill } = useApp()
+  const { state } = useApp()
   const { user } = useAuth()
   const [description, setDescription] = useState("")
   const [items, setItems] = useState<BillItemWithId[]>([])
@@ -195,8 +195,6 @@ export default function SplitBillsPage() {
 
     try {
       const created = await apiCreateBill(bill)
-      // optionally reflect locally if needed (context will generate an id)
-      addBill(bill)
     } catch (e) {
       toast({ title: "Failed", description: "Could not save bill to server.", variant: "destructive" })
       return

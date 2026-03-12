@@ -50,29 +50,33 @@ export function CreateBudgetModal({ open, onOpenChange, onCreated }: CreateBudge
 
     const endDate = calculateEndDate(startDate, period)
 
-    await createBudget({
-      name,
-      amount: Number.parseFloat(amount),
-      period,
-      category,
-      startDate,
-      endDate,
-    })
+    try {
+      await createBudget({
+        name,
+        amount: Number.parseFloat(amount),
+        period,
+        category,
+        startDate,
+        endDate,
+      })
 
-    toast({
-      title: "Budget created",
-      description: `${name} budget has been created successfully.`,
-    })
+      toast({
+        title: "Budget created",
+        description: `${name} budget has been created successfully.`,
+      })
 
-    // Reset form
-    setName("")
-    setAmount("")
-    setPeriod("monthly")
-    setCategory("")
-    setStartDate(new Date().toISOString().split("T")[0])
+      // Reset form
+      setName("")
+      setAmount("")
+      setPeriod("monthly")
+      setCategory("")
+      setStartDate(new Date().toISOString().split("T")[0])
 
-    onOpenChange(false)
-    onCreated?.()
+      onOpenChange(false)
+      onCreated?.()
+    } catch (error) {
+      toast({ title: "Error", description: "Failed to create budget", variant: "destructive" })
+    }
   }
 
   return (

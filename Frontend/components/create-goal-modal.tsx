@@ -42,7 +42,7 @@ const goalCategories = [
 ]
 
 export function CreateGoalModal({ open, onOpenChange, onSuccess }: CreateGoalModalProps) {
-  const { state, addGoal } = useApp()
+  const { state } = useApp()
   const [name, setName] = useState("")
   const [description, setDescription] = useState("")
   const [targetAmount, setTargetAmount] = useState("")

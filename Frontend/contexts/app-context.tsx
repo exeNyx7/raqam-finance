@@ -3,68 +3,6 @@
 import type React from "react"
 import { createContext, useContext, useReducer, useEffect } from "react"
 
-// Types
-export interface Person {
-  id: string
-  name: string
-  email: string
-  avatar?: string
-  isAppUser: boolean
-  phone?: string
-  notes?: string
-  createdAt: string
-  updatedAt: string
-}
-
-export interface Budget {
-  id: string
-  name: string
-  amount: number
-  spent: number
-  period: "weekly" | "monthly"
-  category?: string
-  startDate: string
-  endDate: string
-  status: "active" | "exceeded" | "completed"
-}
-
-export interface Goal {
-  id: string
-  name: string
-  description?: string
-  targetAmount: number
-  currentAmount: number
-  targetDate?: string
-  category: string
-  priority: "low" | "medium" | "high"
-  status: "active" | "completed" | "paused"
-  createdAt: string
-  updatedAt: string
-}
-
-export interface BillItem {
-  id: string
-  name: string
-  amount: number
-  participants: string[]
-}
-
-export interface Bill {
-  id: string
-  description: string
-  items: BillItem[]
-  paidBy: string
-  participants: string[]
-  subtotal: number
-  tax: number
-  taxPercentage: number
-  tip: number
-  total: number
-  date: string
-  status: "draft" | "finalized" | "settled"
-  splits: Record<string, number>
-}
-
 export interface AppSettings {
   currency: string
   dateFormat: string
@@ -81,36 +19,16 @@ export interface AppSettings {
 }
 
 interface AppState {
-  people: Person[]
-  budgets: Budget[]
-  goals: Goal[]
-  bills: Bill[]
   settings: AppSettings
   categories: string[]
 }
 
 type AppAction =
-  | { type: "ADD_PERSON"; payload: Person }
-  | { type: "UPDATE_PERSON"; payload: Person }
-  | { type: "DELETE_PERSON"; payload: string }
-  | { type: "ADD_BUDGET"; payload: Budget }
-  | { type: "UPDATE_BUDGET"; payload: Budget }
-  | { type: "DELETE_BUDGET"; payload: string }
-  | { type: "ADD_GOAL"; payload: Goal }
-  | { type: "UPDATE_GOAL"; payload: Goal }
-  | { type: "DELETE_GOAL"; payload: string }
-  | { type: "ADD_BILL"; payload: Bill }
-  | { type: "UPDATE_BILL"; payload: Bill }
-  | { type: "DELETE_BILL"; payload: string }
   | { type: "UPDATE_SETTINGS"; payload: Partial<AppSettings> }
   | { type: "ADD_CATEGORY"; payload: string }
   | { type: "DELETE_CATEGORY"; payload: string }
 
 const initialState: AppState = {
-  people: [],
-  budgets: [],
-  goals: [],
-  bills: [],
   settings: {
     currency: "PKR",
     dateFormat: "DD/MM/YYYY",
@@ -144,42 +62,6 @@ const initialState: AppState = {
 
 function appReducer(state: AppState, action: AppAction): AppState {
   switch (action.type) {
-    case "ADD_PERSON":
-      return { ...state, people: [...state.people, action.payload] }
-    case "UPDATE_PERSON":
-      return {
-        ...state,
-        people: state.people.map((person) => (person.id === action.payload.id ? action.payload : person)),
-      }
-    case "DELETE_PERSON":
-      return { ...state, people: state.people.filter((person) => person.id !== action.payload) }
-    case "ADD_BUDGET":
-      return { ...state, budgets: [...state.budgets, action.payload] }
-    case "UPDATE_BUDGET":
-      return {
-        ...state,
-        budgets: state.budgets.map((budget) => (budget.id === action.payload.id ? action.payload : budget)),
-      }
-    case "DELETE_BUDGET":
-      return { ...state, budgets: state.budgets.filter((budget) => budget.id !== action.payload) }
-    case "ADD_GOAL":
-      return { ...state, goals: [...state.goals, action.payload] }
-    case "UPDATE_GOAL":
-      return {
-        ...state,
-        goals: state.goals.map((goal) => (goal.id === action.payload.id ? action.payload : goal)),
-      }
-    case "DELETE_GOAL":
-      return { ...state, goals: state.goals.filter((goal) => goal.id !== action.payload) }
-    case "ADD_BILL":
-      return { ...state, bills: [...state.bills, action.payload] }
-    case "UPDATE_BILL":
-      return {
-        ...state,
-        bills: state.bills.map((bill) => (bill.id === action.payload.id ? action.payload : bill)),
-      }
-    case "DELETE_BILL":
-      return { ...state, bills: state.bills.filter((bill) => bill.id !== action.payload) }
     case "UPDATE_SETTINGS":
       return { ...state, settings: { ...state.settings, ...action.payload } }
     case "ADD_CATEGORY":
@@ -194,19 +76,6 @@ function appReducer(state: AppState, action: AppAction): AppState {
 interface AppContextType {
   state: AppState
   dispatch: React.Dispatch<AppAction>
-  // Helper functions
-  addPerson: (person: Omit<Person, "id" | "createdAt" | "updatedAt">) => void
-  updatePerson: (person: Person) => void
-  deletePerson: (id: string) => void
-  addBudget: (budget: Omit<Budget, "id">) => void
-  updateBudget: (budget: Budget) => void
-  deleteBudget: (id: string) => void
-  addGoal: (goal: Omit<Goal, "id" | "createdAt" | "updatedAt">) => void
-  updateGoal: (goal: Goal) => void
-  deleteGoal: (id: string) => void
-  addBill: (bill: Omit<Bill, "id">) => void
-  updateBill: (bill: Bill) => void
-  deleteBill: (id: string) => void
   updateSettings: (settings: Partial<AppSettings>) => void
   addCategory: (category: string) => void
   deleteCategory: (category: string) => void
@@ -223,12 +92,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (savedState) {
       try {
         const parsedState = JSON.parse(savedState)
-        // Merge with initial state to ensure all properties exist
-        Object.keys(parsedState).forEach((key) => {
-          if (key in initialState) {
-            dispatch({ type: `SET_${key.toUpperCase()}` as any, payload: parsedState[key] })
+        if (parsedState.settings) {
+          dispatch({ type: "UPDATE_SETTINGS", payload: parsedState.settings })
+        }
+        if (Array.isArray(parsedState.categories)) {
+          // Replace categories by dispatching delete-all then add-each
+          for (const cat of parsedState.categories) {
+            dispatch({ type: "ADD_CATEGORY", payload: cat })
           }
-        })
+        }
       } catch (error) {
         console.error("Failed to load app state:", error)
       }
@@ -239,75 +111,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     localStorage.setItem("raqam_app_state", JSON.stringify(state))
   }, [state])
-
-  // Helper functions
-  const addPerson = (person: Omit<Person, "id" | "createdAt" | "updatedAt">) => {
-    const newPerson: Person = {
-      ...person,
-      id: Date.now().toString(),
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    }
-    dispatch({ type: "ADD_PERSON", payload: newPerson })
-  }
-
-  const updatePerson = (person: Person) => {
-    dispatch({ type: "UPDATE_PERSON", payload: { ...person, updatedAt: new Date().toISOString() } })
-  }
-
-  const deletePerson = (id: string) => {
-    dispatch({ type: "DELETE_PERSON", payload: id })
-  }
-
-  const addBudget = (budget: Omit<Budget, "id">) => {
-    const newBudget: Budget = {
-      ...budget,
-      id: Date.now().toString(),
-    }
-    dispatch({ type: "ADD_BUDGET", payload: newBudget })
-  }
-
-  const updateBudget = (budget: Budget) => {
-    dispatch({ type: "UPDATE_BUDGET", payload: budget })
-  }
-
-  const deleteBudget = (id: string) => {
-    dispatch({ type: "DELETE_BUDGET", payload: id })
-  }
-
-  const addGoal = (goal: Omit<Goal, "id" | "createdAt" | "updatedAt">) => {
-    const newGoal: Goal = {
-      ...goal,
-      id: Date.now().toString(),
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    }
-    dispatch({ type: "ADD_GOAL", payload: newGoal })
-  }
-
-  const updateGoal = (goal: Goal) => {
-    dispatch({ type: "UPDATE_GOAL", payload: { ...goal, updatedAt: new Date().toISOString() } })
-  }
-
-  const deleteGoal = (id: string) => {
-    dispatch({ type: "DELETE_GOAL", payload: id })
-  }
-
-  const addBill = (bill: Omit<Bill, "id">) => {
-    const newBill: Bill = {
-      ...bill,
-      id: Date.now().toString(),
-    }
-    dispatch({ type: "ADD_BILL", payload: newBill })
-  }
-
-  const updateBill = (bill: Bill) => {
-    dispatch({ type: "UPDATE_BILL", payload: bill })
-  }
-
-  const deleteBill = (id: string) => {
-    dispatch({ type: "DELETE_BILL", payload: id })
-  }
 
   const updateSettings = (settings: Partial<AppSettings>) => {
     dispatch({ type: "UPDATE_SETTINGS", payload: settings })
@@ -326,18 +129,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       value={{
         state,
         dispatch,
-        addPerson,
-        updatePerson,
-        deletePerson,
-        addBudget,
-        updateBudget,
-        deleteBudget,
-        addGoal,
-        updateGoal,
-        deleteGoal,
-        addBill,
-        updateBill,
-        deleteBill,
         updateSettings,
         addCategory,
         deleteCategory,

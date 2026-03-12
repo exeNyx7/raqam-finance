@@ -1,23 +1,24 @@
-# Raqam Finance Refactoring: Phases 6 & 7
+# Raqam Finance Refactoring: Phase 8
 
-**Goal:** Remove legacy code, eliminate split-brain frontend state (mock vs. real data), and patch critical math/logic bugs in the backend.
+**Goal:** Completely eliminate legacy mock state, fix the ledger reimbursement budget logic, and implement safe error handling on frontend forms.
 
-## Phase 6: Frontend State & Architecture Cleanup
-**Objective:** Consolidate type definitions and remove the hardcoded mock data that is desynchronizing the frontend.
+## 1. Complete the Context Purge (`app-context.tsx`)
+**Objective:** Strip `app-context.tsx` down to ONLY handle `Settings` and `Categories`. 
 
-1. **Consolidate Types:** - Move any missing type interfaces from `Frontend/services/types.ts` into `Frontend/lib/api/types.ts`.
-   - Delete `Frontend/services/types.ts` (and the entire `Frontend/services` folder if it is now empty) to prevent accidental legacy imports.
-   - Update any components still importing from `@/services/types` to import from `@/lib/api/types`.
-2. **Purge Mock State:** In `Frontend/contexts/app-context.tsx`, the `initialState` object contains hardcoded mock data (e.g., "Alice Johnson", "Monthly Food Budget", etc.). 
-   - Empty these arrays. `people`, `budgets`, `goals`, and `bills` must initialize as empty arrays `[]` so the app correctly relies on the backend database via `apiClient` instead of dummy `localStorage` data.
+1. **Delete Duplicate Types:** Remove `interface Person`, `Budget`, `Goal`, `BillItem`, and `Bill` from `Frontend/contexts/app-context.tsx`. If any component complains, import them from `@/lib/api/types` instead.
+2. **Remove CRUD Actions:** Delete all `ADD_*`, `UPDATE_*`, and `DELETE_*` cases (except for settings/categories) from the `appReducer`.
+3. **Clean AppContextType:** Remove `addPerson`, `addBudget`, `updateGoal`, etc., from the `AppContextType` interface and from the `AppProvider` return value.
 
-## Phase 7: Backend Logic & Performance Fixes
-**Objective:** Fix the ledger math, update budget progress on recurring payments, and prevent frontend DDoS polling.
+## 2. Fix Payer Budget Reimbursement (`ledgerController.js`)
+**Objective:** Ensure a user's budget recovers when they are reimbursed for a shared expense.
 
-1. **Extract Budget Utility:** The function `adjustBudgetsForCategoryAndDate` is currently trapped inside `Backend/src/controllers/ledgerController.js`. 
-   - Move it into a new utility file: `Backend/src/utils/budgetUtils.js`.
-   - Import and use this new utility in `ledgerController.js`.
-2. **Fix Recurring Budget Gap:** In `Backend/src/cron/checkRecurring.js`, import the new `budgetUtils.js`. After the cron job successfully creates a recurring `Transaction`, it must call `adjustBudgetsForCategoryAndDate` so automated bills correctly deduct from the user's active budget limits.
-3. **Fix Ledger Split Math (TODO #6):** In `Backend/src/controllers/ledgerController.js` -> `addTransaction()`, the `equalShare` is currently calculated by dividing the total amount by the `shareCount` (which excludes the payer). 
-   - Update the math to divide by the **total number of involved participants** (debtors + payer) so the split is actually equal among everyone who shared the expense.
-4. **Reduce Polling Load:** In `Frontend/components/notifications-popover.tsx`, change the `setInterval` from `30000` (30 seconds) to `180000` (3 minutes) to prevent aggressive background polling from overloading the Express server.
+1. **Update `approveShare`:** In `Backend/src/controllers/ledgerController.js` inside the `approveShare` function, locate the budget adjustment logic.
+2. **Add Recovery Call:** Immediately after adjusting the participant's budget, add a call to refund the payer's budget by passing a *negative* `deltaAmount`:
+   `await adjustBudgetsForCategoryAndDate({ userId: lt.paidByUserId, category: lt.category, date: new Date(), deltaAmount: -amount })`
+
+## 3. Form Error Handling (`create-budget-modal.tsx`)
+**Objective:** Prevent false-positive success messages when the API fails.
+
+1. **Implement Try/Catch:** In `Frontend/components/create-budget-modal.tsx`, wrap the `await createBudget(...)` call inside a `try { ... } catch (error) { ... }` block.
+2. **Move Success Logic:** The success `toast` and `onOpenChange(false)` must be moved *inside* the `try` block so they only execute if the promise resolves.
+3. **Handle Failure:** In the `catch` block, trigger a destructive error toast: `toast({ title: "Error", description: "Failed to create budget", variant: "destructive" })`.
